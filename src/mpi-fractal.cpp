@@ -1,6 +1,7 @@
 #include <map>
 #include <limits>
 #include <string>
+#include <cstring>
 #include <iostream>
 #include <type_traits>
 
@@ -93,10 +94,30 @@ namespace { const tag_type done_tag = std::numeric_limits<tag_type>::max(); }
 int main(int argc, char** argv) {
     mpi::environment env(argc, argv);
     mpi::communicator world;
+    if (argc == 1) {
+        std::cout << "usage: [number of pictures] [keep-pngs]"             << std::endl
+                  << "       number of pictures as decimal (default: 778)" << std::endl
+                  << "       keep-pngs as string (default: false)"         << std::endl;
+        exit(-1);
+    }
+
+    bool save_imgs = false;
+    int max_imgs   = 778;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strncmp(argv[i], "keep-pngs", std::strlen(argv[i])) == 0) {
+            save_imgs = true;
+        } else {
+            try {
+                max_imgs = std::stoi(argv[i]);
+            } catch(std::exception&) {
+                std::cout << "invalid argument: " << argv[i] << std::endl;
+            }
+        }
+    }
 
     if (world.rank() == 0) {
         tag_type id = 0;
-        size_t awaited = 10;
+        size_t awaited = 0;
         fractal_request_stream frs;
         map<tag_type,job_msg> out;
         map<tag_type,QByteArray> in;
@@ -107,6 +128,10 @@ int main(int argc, char** argv) {
                  default_zoom);
         auto send_job = [&](int worker) {
             if (frs.next()) {
+                if (id >= max_imgs) {
+                   // end
+                   return;
+                }
                 ++awaited;
                 auto t = ++id;
                 auto r1 = out.insert(make_pair(t, job_msg{frs.request(), default_iterations, t}));
@@ -132,18 +157,20 @@ int main(int argc, char** argv) {
                 }
                 else {
                     --awaited;
-                    // store image to disc
-                    auto img = QImage::fromData(in[s.tag()], image_format);
-                    std::ostringstream fname;
-                    fname.width(4);
-                    fname.fill('0');
-                    fname.setf(ios_base::right);
-                    fname << s.tag() << image_file_ending;
-                    QFile f{fname.str().c_str()};
-                    if (!f.open(QIODevice::WriteOnly)) {
-                        cerr << "could not open file: " << fname.str() << endl;
+                    if (save_imgs) {
+                        // store image to disc
+                        auto img = QImage::fromData(in[s.tag()], image_format);
+                        std::ostringstream fname;
+                        fname.width(4);
+                        fname.fill('0');
+                        fname.setf(ios_base::right);
+                        fname << s.tag() << image_file_ending;
+                        QFile f{fname.str().c_str()};
+                        if (!f.open(QIODevice::WriteOnly)) {
+                            cerr << "could not open file: " << fname.str() << endl;
+                        }
+                        else img.save(&f, image_format);
                     }
-                    else img.save(&f, image_format);
                     in.erase(s.tag());
                     // enqueue next job
                     send_job(s.source());
@@ -165,10 +192,12 @@ int main(int argc, char** argv) {
                                             msg.min_re, msg.max_re, msg.min_im, msg.max_im, false);
             req.wait(); // wait for last send to finish
             ba.clear();
-            QBuffer buf{&ba};
-            buf.open(QIODevice::WriteOnly);
-            img.save(&buf, image_format);
-            buf.close();
+            if (save_imgs) {
+              QBuffer buf{&ba};
+              buf.open(QIODevice::WriteOnly);
+              img.save(&buf, image_format);
+              buf.close();
+            }
             req = world.isend(0, st.tag(), ba);
         }
     }
