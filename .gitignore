@@ -1,0 +1,17 @@
+*.DS_Store
+Doxyfile
+cppa.creator.user*
+html/
+build/*
+cli_build/*
+build-clang/*
+build-gcc/*
+Makefile
+bin/*
+lib/*
+manual/build-pdf/*
+manual/build-html/*
+manual/*.toc
+manual/manual.html
+manual/variables.tex
+*.swp
