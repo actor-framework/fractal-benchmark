@@ -83,7 +83,7 @@ else ()
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif ()
 
-find_package(Libcaf COMPONENTS core io riac REQUIRED)
+find_package(Libcaf COMPONENTS core io REQUIRED)
 
 # this command finds Qt4 libraries and sets all required variables
 # note that it's Qt4, not QT4 or qt4

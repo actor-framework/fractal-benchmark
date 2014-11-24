@@ -6,7 +6,6 @@
 
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
-#include "caf/riac/all.hpp"
 #include "cppa/opt.hpp"
 
 #include "ui_main.h"
@@ -36,7 +35,6 @@ std::vector<std::string> split(const std::string& str, char delim,
 int main(int argc, char** argv) {
   // announce some messaging types
   scoped_actor self;
-  riac::announce_message_types();
   announce<vector<int>>();
   announce<vector<float>>();
   announce<set<actor>>();
@@ -84,7 +82,7 @@ int main(int argc, char** argv) {
     print_desc_and_exit(&desc)();
   }
   if (nexus_port && !nexus_host.empty()) {
-    riac::init_probe(nexus_host, *nexus_port);
+    //riac::init_probe(nexus_host, *nexus_port);
   }
   if (!is_server && !is_controller) {
     if (num_workers == 0) {
