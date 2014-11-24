@@ -81,9 +81,6 @@ int main(int argc, char** argv) {
   if (!args_valid) {
     print_desc_and_exit(&desc)();
   }
-  if (nexus_port && !nexus_host.empty()) {
-    //riac::init_probe(nexus_host, *nexus_port);
-  }
   if (!is_server && !is_controller) {
     if (num_workers == 0) {
       num_workers = 1;

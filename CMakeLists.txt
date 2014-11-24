@@ -102,7 +102,6 @@ QT4_WRAP_UI(FRACTAL_CPPA_UI_HDRS ${FRACTAL_CPPA_UIS})
 
 # and finally this will run moc:
 QT4_WRAP_CPP(FRACTAL_CPPA_MOC_SRCS ${FRACTAL_CPPA_HDRS}
-                                   include/server.hpp
                                    include/imagelabel.h
                                    include/mainwidget.hpp
                                    include/controllerwidget.hpp)
