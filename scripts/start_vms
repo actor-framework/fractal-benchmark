@@ -1,0 +1,45 @@
+#!/bin/bash
+if [ "$(whoami)" != "root" ]; then
+  echo "sorry, need to be root"
+  exit -1
+fi
+if [ $# != 1 ]; then
+  echo "usage: $0 Number of VMs to start"
+  exit -2
+fi
+# qemu base image
+vmbaseimg="/opt/qemu/fedora.qcow"
+# path to qemu
+qemu="qemu-system-x86_64"
+# qemu args
+qemu_args="-localtime -enable-kvm -nographic"
+# assigned VM RAM
+qemu_vm_ram="2048"
+# path to open v switch port init scripts
+ifupscript="ovs-ifup"
+ifdownscript="ovs-ifdown"
+# prefix for mac adresses
+macaddrprefix="52:54:FF:FF:FF:"
+# begin value for last block of mac adress
+macaddrbegin="00"
+# time to wait till all vms finished boot
+sleeptime=30
+# ssh user
+sshuser="bench"
+
+for i in $(seq 1 1 $1)
+do
+  cmd="${qemu} -hda ${vmbaseimg} -boot d -m ${qemu_vm_ram} ${qemu_args}        \
+       -net nic,macaddr=${macaddrprefix}${i}                                   \
+       -net tap,script=${ifupscript},downscript=${ifdownscript}"
+  exec ${cmd} & echo $! > "pids.txt"
+done
+
+sleep $sleeptime
+
+for ip in $(awk '{print $3}' < cat /var/lib/misc/dnsmasq.leases)
+do
+  ssh "${sshuser}@${ip}"
+done
+
+echo "All VMs started"

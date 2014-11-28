@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ "$(whoami)" != "root" ]; then
+  echo "sorry, need to be root"
+  exit -1
+fi
+
+for i in $(cat pids.txt)
+do
+  kill -9 $i
+done
+
+# delete all leases
+service dnsmasq stop
+> "/var/lib/misc/dnsmasq.leases"
+service dnsmasq start
+
+echo "All VMs killed"
