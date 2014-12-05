@@ -1,18 +1,29 @@
 #!/bin/bash
 
+# virtual interface name
+ifname="vr0"
+
 if [ "$(whoami)" != "root" ]; then
   echo "sorry, need to be root"
   exit -1
 fi
 
-for i in $(cat pids.txt)
-do
+for i in $(cat pids.txt); do
   kill -9 $i
 done
+> "pids.txt"
 
 # delete all leases
 service dnsmasq stop
 > "/var/lib/misc/dnsmasq.leases"
 service dnsmasq start
+
+# delete ports
+for port in $(ovs-vsctl list-ports $ifname); do
+  ovs-vsctl del-port $ifname $port
+done
+
+# empty hostfile
+> "hostfile.txt"
 
 echo "All VMs killed"
