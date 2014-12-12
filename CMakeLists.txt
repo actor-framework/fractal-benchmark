@@ -83,80 +83,68 @@ else ()
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif ()
 
-find_package(Libcaf COMPONENTS core io REQUIRED)
-
-# this command finds Qt4 libraries and sets all required variables
-# note that it's Qt4, not QT4 or qt4
-FIND_PACKAGE(Qt4 REQUIRED)
-
-# add some useful macros and variables
-# (QT_USE_FILE is a variable defined by FIND_PACKAGE( Qt4 ) that contains a path to CMake script)
-INCLUDE(${QT_USE_FILE})
-
-# this command will generate rules that will run rcc on all files from SAMPLE_RCS
-# in result SAMPLE_RC_SRCS variable will contain paths to files produced by rcc
-QT4_ADD_RESOURCES(FRACTAL_CPPA_RC_SRCS ${FRACTAL_CPPA_RCS} src/fractal.qrc)
-
-# this will run uic on .ui files:
-QT4_WRAP_UI(FRACTAL_CPPA_UI_HDRS ${FRACTAL_CPPA_UIS})
-
-# and finally this will run moc:
-QT4_WRAP_CPP(FRACTAL_CPPA_MOC_SRCS ${FRACTAL_CPPA_HDRS}
-                                   include/imagelabel.h
-                                   include/mainwidget.hpp
-                                   include/controllerwidget.hpp)
-
-# we need this to be able to include headers produced by uic in our code
-# (CMAKE_BINARY_DIR holds a path to the build directory, while INCLUDE_DIRECTORIES() works just like INCLUDEPATH
-# from qmake)
-INCLUDE_DIRECTORIES(. include ${CMAKE_BINARY_DIR} ${LIBCAF_INCLUDE_DIRS})
-
-set(SOURCES_CAF
-    src/config.cpp
-    src/q_byte_array_info.cpp
-    src/caf-fractal.cpp
-    src/imagelabel.cpp
-    src/mainwidget.cpp
-    src/controllerwidget.cpp
-    src/config_map.cpp
-    src/client.cpp
-    src/server.cpp
-    src/fractal_request_stream.cpp
-    src/controller.cpp
-    ${FRACTAL_CPPA_MOC_SRCS}
-    ${FRACTAL_CPPA_RC_SRCS}
-    ${FRACTAL_CPPA_UI_HDRS})
-
-file(GLOB HEADERS "include/*.hpp")
-
-
-add_executable(fractal-cppa ${SOURCES_CAF} ${HEADERS})
-target_link_libraries(fractal-cppa ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES} ${QT_LIBRARIES})
-
+if (NOT NO_CAF)
+  find_package(Libcaf COMPONENTS core io REQUIRED)
+  # this command finds Qt4 libraries and sets all required variables
+  # note that it's Qt4, not QT4 or qt4
+  FIND_PACKAGE(Qt4 REQUIRED)
+  # add some useful macros and variables
+  # (QT_USE_FILE is a variable defined by FIND_PACKAGE( Qt4 ) that contains a path to CMake script)
+  INCLUDE(${QT_USE_FILE})
+  # this command will generate rules that will run rcc on all files from SAMPLE_RCS
+  # in result SAMPLE_RC_SRCS variable will contain paths to files produced by rcc
+  QT4_ADD_RESOURCES(FRACTAL_CPPA_RC_SRCS ${FRACTAL_CPPA_RCS} src/fractal.qrc)
+  # this will run uic on .ui files:
+  QT4_WRAP_UI(FRACTAL_CPPA_UI_HDRS ${FRACTAL_CPPA_UIS})
+  # and finally this will run moc:
+  QT4_WRAP_CPP(FRACTAL_CPPA_MOC_SRCS ${FRACTAL_CPPA_HDRS}
+                                     include/imagelabel.h
+                                     include/mainwidget.hpp
+                                     include/controllerwidget.hpp)
+  # we need this to be able to include headers produced by uic in our code
+  # (CMAKE_BINARY_DIR holds a path to the build directory, while INCLUDE_DIRECTORIES() works just like INCLUDEPATH
+  # from qmake)
+  INCLUDE_DIRECTORIES(. include ${CMAKE_BINARY_DIR} ${LIBCAF_INCLUDE_DIRS})
+  set(SOURCES_CAF
+      src/config.cpp
+      src/q_byte_array_info.cpp
+      src/caf-fractal.cpp
+      src/imagelabel.cpp
+      src/mainwidget.cpp
+      src/controllerwidget.cpp
+      src/config_map.cpp
+      src/client.cpp
+      src/server.cpp
+      src/fractal_request_stream.cpp
+      src/controller.cpp
+      ${FRACTAL_CPPA_MOC_SRCS}
+      ${FRACTAL_CPPA_RC_SRCS}
+      ${FRACTAL_CPPA_UI_HDRS})
+  file(GLOB HEADERS "include/*.hpp")
+  add_executable(fractal-cppa ${SOURCES_CAF} ${HEADERS})
+  target_link_libraries(fractal-cppa ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES} ${QT_LIBRARIES})
+endif(NOT NO_CAF)
 ###############################################################################
 #                                    MPI                                      #
 ###############################################################################
 
-find_package(MPI REQUIRED)
-find_package(Boost COMPONENTS mpi serialization REQUIRED)
-
-include_directories(${MPI_INCLUDE_PATH})
-include_directories(${Boost_INCLUDE_DIRS})
-
-set(SOURCES_MPI
-    src/fractal_request_stream.cpp
-    src/mpi-fractal.cpp
-    src/config.cpp)
-
-add_executable(mpi-fractal ${SOURCES_MPI})
-target_link_libraries(mpi-fractal ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${QT_LIBRARIES})
-
-if(MPI_COMPILE_FLAGS)
-  set_target_properties(mpi-fractal PROPERTIES
+if (NOT NO_MPI)
+  find_package(MPI REQUIRED)
+  find_package(Boost COMPONENTS mpi serialization REQUIRED)
+  include_directories(${MPI_INCLUDE_PATH})
+  include_directories(${Boost_INCLUDE_DIRS})
+  set(SOURCES_MPI
+      src/fractal_request_stream.cpp
+      src/mpi-fractal.cpp
+      src/config.cpp)
+  add_executable(mpi-fractal ${SOURCES_MPI})
+  target_link_libraries(mpi-fractal ${MPI_LIBRARIES} ${Boost_LIBRARIES} ${QT_LIBRARIES})
+  if(MPI_COMPILE_FLAGS)
+    set_target_properties(mpi-fractal PROPERTIES
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-endif()
-
-if(MPI_LINK_FLAGS)
-  set_target_properties(mpi-fractal PROPERTIES
-    LINK_FLAGS "${MPI_LINK_FLAGS}")
-endif()
+  endif()
+  if(MPI_LINK_FLAGS)
+    set_target_properties(mpi-fractal PROPERTIES
+      LINK_FLAGS "${MPI_LINK_FLAGS}")
+  endif()
+endif(NOT NO_MPI)

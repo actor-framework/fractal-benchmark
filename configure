@@ -28,6 +28,8 @@ Usage: $0 [OPTION]... [VAR=VALUE]...
     --with-clang=FILE           path to clang++ executable
     --with-gcc=FILE             path to g++ executable
     --dual-build                build both with gcc and clang
+    --no-caf                    build without CAF
+    --no-mpi                    build without MPI
 
   Installation Directories:
     --prefix=PREFIX             installation directory [/usr/local]
@@ -174,6 +176,12 @@ while [ $# -ne 0 ]; do
             ;;
         --dual-build)
             dualbuild=1
+            ;;
+        --no-caf)
+            append_cache_entry NO_CAF BOOL true
+            ;;
+        --no-mpi)
+            append_cache_entry NO_MPI BOOL true
             ;;
         *)
             echo "Invalid option '$1'.  Try $0 --help to see available options."
