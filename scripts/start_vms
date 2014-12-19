@@ -8,7 +8,7 @@ if [ $# != 1 ]; then
   exit -2
 fi
 # qemu base image
-vmbaseimg="/opt/qemu-imgs/fedora.qcow"
+vmbaseimg="/opt/qemu-imgs/fedora21-2.qcow"
 # qemu diff image path
 diffimg="/opt/qemu-imgs"
 # path to qemu
@@ -25,9 +25,23 @@ macaddrprefix="52:54:FF:FF:FF:"
 # begin value for last block of mac adress
 macaddrbegin="00"
 # time to wait till all vms finished boot
-sleeptime=45
-# ssh user
-sshuser="bench"
+sleeptime=60
+
+# start master vm
+if [ -f "${diffimg}/vm_master.qcow" ]; then
+  echo "${diffimg}/vm_master.qcow already exsist"
+else
+  qemu-img create -f qcow -b $vmbaseimg "${diffimg}/vm_master.qcow"
+fi
+cmd="${qemu} -hda "${diffimg}/vm_master.qcow" -boot d -m ${qemu_vm_ram} ${qemu_args} \
+    -net nic,macaddr=${macaddrprefix}${i}                                         \
+    -net tap,script=${ifupscript},downscript=${ifdownscript}"
+exec ${cmd} & echo $! >> "masterpid.txt"
+# wait till master img has finished boot
+sleep $sleeptime
+
+masterip=$(cat /var/lib/misc/dnsmasq.leases | awk '{print $3}')
+echo $masterip >> "masterip.txt"
 
 for i in $(seq 1 1 $1); do
   if [ -f "${diffimg}/vm${i}.qcow" ]; then

@@ -8,10 +8,26 @@ if [ "$(whoami)" != "root" ]; then
   exit -1
 fi
 
-for i in $(cat pids.txt); do
-  kill -9 $i
+for i in $(cat hostfile.txt); do
+  ssh root@$i 'shutdown now'
 done
+
+for i in $(cat pids.txt); do
+  while [[ ${?} == 0 ]]
+  do
+    sleep 1s
+    ps -p $i
+  done
+done
+
+while [[ ${?} == 0 ]]
+do
+  sleep 1s
+  ps -p $i
+done
+
 > "pids.txt"
+> "masterpid.txt"
 
 # delete all leases
 service dnsmasq stop
@@ -25,5 +41,6 @@ done
 
 # empty hostfile
 > "hostfile.txt"
+> "masterip.txt"
 
 echo "All VMs killed"

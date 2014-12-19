@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# get hostfile
+scp triebe@mobi8:gitrepos/fractal-benchmark/scripts/hostfile.txt .
+
+# start mpi
+time {  mpirun -np 1 --hostfile hostfile.txt --wdir /home/triebe/gitrepos/fractal-benchmark/build/bin/ mpi-fractal ; } 2> bench.txt
