@@ -64,3 +64,12 @@ do
 done
 
 echo "All VMs started"
+
+# connect to all vms to force load mpi module
+for i in $(cat hostfile.txt)
+do
+  ssh triebe@$i 'exit'
+done
+
+# start benchmark script on master vm
+ssh triebe@$masterip './gitrepos/fractal-benchmark/scripts/run_benches'

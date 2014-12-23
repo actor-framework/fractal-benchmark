@@ -4,4 +4,10 @@
 scp triebe@mobi8:gitrepos/fractal-benchmark/scripts/hostfile.txt .
 
 # start mpi
-time {  mpirun -np 1 --hostfile hostfile.txt --wdir /home/triebe/gitrepos/fractal-benchmark/build/bin/ mpi-fractal ; } 2> bench.txt
+time { mpirun -np 1 --hostfile hostfile.txt --wdir /home/triebe/gitrepos/fractal-benchmark/build/bin/ mpi-fractal; } > bench.txt
+
+# copy bench.txt back to mobi8
+scp bench.txt triebe@mobi8:gitrepos/fractal-benchmark/scripts/
+
+# delete old hostfile
+rm hostfile.txt
