@@ -94,15 +94,15 @@ namespace { const tag_type done_tag = std::numeric_limits<tag_type>::max(); }
 int main(int argc, char** argv) {
     mpi::environment env(argc, argv);
     mpi::communicator world;
-    if (argc == 1) {
+    /*if (argc == 1) {
         std::cout << "usage: [number of pictures] [keep-pngs]"             << std::endl
                   << "       number of pictures as decimal (default: 778)" << std::endl
                   << "       keep-pngs as string (default: false)"         << std::endl;
         exit(-1);
-    }
+    }*/
 
     bool save_imgs = false;
-    int max_imgs   = 778;
+    int  max_imgs  = 778;
     for (int i = 1; i < argc; ++i) {
         if (std::strncmp(argv[i], "keep-pngs", std::strlen(argv[i])) == 0) {
             save_imgs = true;
