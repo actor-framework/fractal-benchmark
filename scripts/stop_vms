@@ -8,8 +8,14 @@ if [ "$(whoami)" != "root" ]; then
   exit -1
 fi
 
+passwd="password here"
 for i in $(cat hostfile.txt); do
-  ssh root@$i 'shutdown now'
+  /usr/bin/expect<<EOF
+spawn ssh root@$i 'shutdown now'
+expect "*?assword: "
+send -- "$passwd\r"
+expect eof
+EOF
 done
 
 for i in $(cat pids.txt); do

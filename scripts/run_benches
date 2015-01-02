@@ -1,13 +1,17 @@
 #!/bin/bash
-
-# get hostfile
-scp triebe@mobi8:gitrepos/fractal-benchmark/scripts/hostfile.txt .
-
-# start mpi
-time { mpirun -np 1 --hostfile hostfile.txt --wdir /home/triebe/gitrepos/fractal-benchmark/build/bin/ mpi-fractal; } > bench.txt
-
-# copy bench.txt back to mobi8
-scp bench.txt triebe@mobi8:gitrepos/fractal-benchmark/scripts/
-
-# delete old hostfile
-rm hostfile.txt
+repetitions=10
+start=4
+end=64
+step=4
+wdir="/home/triebe/gitrepos/fractal-benchmark/build/bin/"
+# connect to all vms to force load mpi module
+for i in $(cat hostfile.txt); do
+  { ssh $i 'exit'; } 2> /dev/null
+done
+# start benchmark
+for i in $(seq ${start} ${step} ${end}); do
+  nodes=$(($i+1))
+  for j in $(seq 1 1 ${repetitions}); do
+    { time mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal; } 2> bench_results/bench_mpi_${i}_run_${j}.txt
+  done
+done
