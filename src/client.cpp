@@ -281,21 +281,12 @@ behavior client::make_behavior(){
         m_current_fractal_type  = atom("mandel");
         frac_changed = true;
       }
-      auto start = std::chrono::high_resolution_clock::now();
       auto msg = response_from_image(calculate_mandelbrot(m_palette, width,
                                                           height, iterations,
                                                           min_re, max_re,
                                                           min_im, max_im,
                                                           frac_changed),
                                      image_id);
-      auto finish = std::chrono::high_resolution_clock::now();
-      using ms = std::chrono::milliseconds;
-      using std::chrono::duration_cast;
-      aout(this) << "calculation of image nr. " << image_id << " took "
-                 << (duration_cast<ms>(finish - start)).count()
-                 << "ms, "
-                 << "server = " << to_string(server) << ", "
-                 << "client = " << to_string(actor{this}) << endl;
       send(server, msg);
     },
     on(atom("tricorn"), arg_match) >> [=](uint32_t width,

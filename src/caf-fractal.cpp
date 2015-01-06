@@ -97,7 +97,6 @@ int main(int argc, char** argv) {
       }
 #   endif // ENABLE_OPENCL
     for (size_t i = 0; i < num_workers; ++i) {
-      cout << "add a CPU worker" << endl;
       workers.push_back(spawn<client>());
     }
     auto emergency_shutdown = [&] {
@@ -219,7 +218,6 @@ int main(int argc, char** argv) {
         }
 #   endif // ENABLE_OPENCL
       for (size_t i = 0; i < num_workers; ++i) {
-        cout << "add a CPU worker" << endl;
         send_as(spawn<client>(), ctrl, atom("add"));
       }
     }
@@ -229,7 +227,6 @@ int main(int argc, char** argv) {
       uint32_t total_images = 778; // set properly in 'done' handler
       self->receive_while([&] { return received_images < total_images; }) (
         on(atom("Image"), arg_match) >> [&](const QByteArray& ba) {
-           cout << "Received image\n";
            auto img = QImage::fromData(ba, image_format);
            std::ostringstream fname;
            fname.width(4);
@@ -238,12 +235,6 @@ int main(int argc, char** argv) {
            fname << received_images;
            fname << image_file_ending;
            QFile f{fname.str().c_str()};
-           if (!f.open(QIODevice::WriteOnly)) {
-             cerr << "could not open file: " << fname.str() << endl;
-           } else {
-             cout << "writing image to " << fname.str() << endl;
-             img.save(&f, image_format);
-           }
            ++received_images;
          },
         others() >> [&] {
@@ -251,6 +242,8 @@ int main(int argc, char** argv) {
                << to_string(self->last_dequeued()) << endl;
         }
       );
+      shutdown();
+      exit(0);
     } else {
       // launch gui
       QApplication app{argc, argv};

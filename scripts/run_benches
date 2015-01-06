@@ -6,12 +6,31 @@ step=4
 wdir="/home/triebe/gitrepos/fractal-benchmark/build/bin/"
 # connect to all vms to force load mpi module
 for i in $(cat hostfile.txt); do
-  { ssh $i 'exit'; } 2> /dev/null
+  { ssh $i 'exit'; } 2> /dev/null&
 done
 # start benchmark
-for i in $(seq ${start} ${step} ${end}); do
-  nodes=$(($i+1))
-  for j in $(seq 1 1 ${repetitions}); do
-    { time mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal; } 2> bench_results/bench_mpi_${i}_run_${j}.txt
+for bench in caf mpi ; do
+  for i in $(seq ${start} ${step} ${end}); do
+    nodes=$(($i+1))
+    for j in $(seq 1 1 ${repetitions}); do
+      if [[ bench == "mpi" ]]; then
+        { time mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal; } 2> bench_results/bench_mpi_${i}_run_${j}.txt
+      else
+        { time ${wdir}fractal-cppa -s -g -u; } 2> bench_results/bench_caf_${i}_run_${j}.txt&
+        serverpid=$!
+        echo $serverpid
+        for k in $(cat hostfile.txt); do
+          if [[ $k == $(ifconfig | awk '{ print $2 }' | awk 'NR==2') ]]; then
+            continue
+          fi
+          { ssh $k '/home/triebe/gitrepos/fractal-benchmark/build/bin/fractal-cppa -H 192.168.0.62'; } 2> /dev/null&
+        done
+        wait $serverpid
+        for k in $(cat hostfile.txt); do
+          { ssh $k 'killall fractal-cppa'; } 2> /dev/null&
+        done
+        exit 0
+      fi
+    done
   done
 done
