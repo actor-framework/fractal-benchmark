@@ -107,7 +107,7 @@ void worker(mpi::communicator& world) {
   for (;;) {
     auto st = world.probe();
     if (st.tag() == done_tag) {
-      return 0;
+      return;
     }
     world.recv(0, st.tag(), msg);
     auto img = calculate_mandelbrot(palette, msg.width, msg.height,
@@ -162,8 +162,10 @@ void client(mpi::communicator& world) {
       } else {
         ++received_images;
         in.erase(s.tag());
-        // enqueue next job
-        send_job(s.source());
+        if (received_images < max_images) {
+          // enqueue next job
+          send_job(s.source());
+        }
       }
     }
     statuses.clear();
@@ -171,6 +173,7 @@ void client(mpi::communicator& world) {
   for (int i = 1; i < world.size(); ++i) {
     world.send(i, done_tag);
   }
+  mpi::wait_all(requests.begin(), requests.end());
 }
 
 int main(int argc, char** argv) {
@@ -181,4 +184,5 @@ int main(int argc, char** argv) {
   } else {
     worker(world);
   }
+  return 0;
 }
