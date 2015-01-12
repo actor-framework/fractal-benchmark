@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
   if (is_worker) {
     io::publish(spawn<worker>(), port);
   } else {
-    auto nodes = split(nodes_str, ',');
+    auto nodes = split(nodes_str, ',', true);
     if (nodes.empty()) {
       cerr << "not started as worker but nodes list is empty" << endl;
       return -1;
