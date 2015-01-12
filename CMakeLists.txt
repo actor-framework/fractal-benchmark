@@ -89,7 +89,7 @@ set(SOURCES_MPI
     src/mpi-fractal.cpp
     src/config.cpp)
 
-if(MPI_FOUND AND BOOST_FOUND)
+if(MPI_C_FOUND AND Boost_FOUND)
   include_directories(. include ${MPI_INCLUDE_PATH} ${Boost_INCLUDE_DIRS}
                       ${QT_INCLUDES})
   add_executable(mpi-fractal ${SOURCES_MPI} ${HEADERS})
@@ -101,5 +101,6 @@ if(MPI_FOUND AND BOOST_FOUND)
     set_target_properties(mpi-fractal PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
   endif()
 else()
+  message(STATUS "skip MPI implementation")
   add_custom_target(mpi_dummy SOURCES ${SOURCES_MPI})
 endif()
