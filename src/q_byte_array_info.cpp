@@ -3,6 +3,11 @@
 using namespace std;
 using namespace caf;
 
+q_byte_array_info::q_byte_array_info()
+    : caf::detail::abstract_uniform_type_info<QByteArray>("QByteArray") {
+  // nop
+}
+
 void q_byte_array_info::serialize(const void* ptr,
                                   caf::serializer* sink) const {
   auto ba_ptr = reinterpret_cast<const QByteArray*>(ptr);

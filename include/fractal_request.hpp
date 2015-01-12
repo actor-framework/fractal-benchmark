@@ -6,8 +6,8 @@
 
 #include "config.hpp"
 
-using fractal_request = std::tuple<std::uint32_t,    // 0: width,
-                                   std::uint32_t,    // 1: height
+using fractal_request = std::tuple<uint32_t,    // 0: width,
+                                   uint32_t,    // 1: height
                                    float_type,       // 2: min real
                                    float_type,       // 3: max real
                                    float_type,       // 4: min img

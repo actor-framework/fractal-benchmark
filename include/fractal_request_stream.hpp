@@ -21,23 +21,25 @@ class fractal_request_stream {
 
   inline const fractal_request& request() const { return m_freq; }
 
-  void resize(std::uint32_t width, std::uint32_t height);
+  void resize(uint32_t width, uint32_t height);
 
-  void init(std::uint32_t width, std::uint32_t height, float_type min_re,
+  void init(uint32_t width, uint32_t height, float_type min_re,
             float_type max_re, float_type min_im, float_type max_im,
-            float_type zoom);
+            float_type zoom, bool loop_forever = true);
 
   // false if stream is done
   bool next();
 
-  inline bool at_end() const { return m_operations.empty(); }
+  inline bool at_end() const {
+    return m_operations.empty();
+  }
 
-  void loop_stack_mandelbrot();
+  void loop_stack_mandelbrot(bool loop_forever = true);
   void loop_stack_burning_ship();
 
  private:
-  std::uint32_t m_width;
-  std::uint32_t m_height;
+  uint32_t m_width;
+  uint32_t m_height;
   float_type m_min_re;
   float_type m_max_re;
   float_type m_min_im;
@@ -46,6 +48,7 @@ class fractal_request_stream {
   fractal_request m_freq;
 
   std::vector<std::pair<operation, predicate>> m_operations;
+  std::vector<std::pair<operation, predicate>> m_loop_operations;
 
   void add_start_move(float_type from_x, float_type from_y, float_type to_x,
                       float_type to_y, int max_zoom);

@@ -249,7 +249,8 @@ void fractal_request_stream::loop_stack_burning_ship() {
 
 
 // Mandelbrot
-void fractal_request_stream::loop_stack_mandelbrot() {
+void fractal_request_stream::loop_stack_mandelbrot(bool loop_forever) {
+  m_loop_operations.clear();
   std::vector<std::pair<float_type,float_type>> chain;
   // coords are visited top down
   chain.emplace_back(0.28692299709,-0.01218247138);  // geode
@@ -278,11 +279,14 @@ void fractal_request_stream::loop_stack_mandelbrot() {
   add_chain(chain, 80);
   //add_chain(chain, 100);
   m_operations.emplace_back(reset_op, do_once);
+  if (loop_forever) {
+    m_loop_operations = m_operations;
+  }
 }
 
 
-void fractal_request_stream::resize(std::uint32_t new_width,
-                                    std::uint32_t new_height) {
+void fractal_request_stream::resize(uint32_t new_width,
+                                    uint32_t new_height) {
   float_type nw = new_width;
   float_type nh = new_height;
   width(m_freq) = nw;
@@ -291,13 +295,14 @@ void fractal_request_stream::resize(std::uint32_t new_width,
                    + (::max_re(m_freq) - ::min_re(m_freq)) * nh / nw;
 }
 
-void fractal_request_stream::init(std::uint32_t width,
-                                  std::uint32_t height,
+void fractal_request_stream::init(uint32_t width,
+                                  uint32_t height,
                                   float_type min_re,
                                   float_type max_re,
                                   float_type min_im,
                                   float_type max_im,
-                                  float_type zoom) {
+                                  float_type zoom,
+                                  bool loop_forever) {
   ::width(m_freq) = width;
   ::height(m_freq) = height;
   m_width  = width;
@@ -307,13 +312,18 @@ void fractal_request_stream::init(std::uint32_t width,
   m_min_im = min_im;
   m_max_im = max_im;
   m_zoom   = zoom;
-  loop_stack_mandelbrot();
+  loop_stack_mandelbrot(loop_forever);
 }
 
 bool fractal_request_stream::next() {
   if (!at_end()) {
     m_operations.back().first(this, m_freq);
-    if (m_operations.back().second(this, m_freq)) m_operations.pop_back();
+    if (m_operations.back().second(this, m_freq)) {
+      m_operations.pop_back();
+      if (m_operations.empty() && !m_loop_operations.empty()) {
+        m_operations = m_loop_operations;
+      }
+    }
     return true;
   }
   return false;
