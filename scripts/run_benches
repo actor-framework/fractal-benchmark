@@ -23,10 +23,10 @@ for bench in mpi caf ; do
     for j in $(seq 1 $repetitions); do
       output=${i}_machines_runtime_${bench}_distributed_mandelbrot.txt
       if [[ $bench == "mpi" ]]; then
-        mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal | grep -oE "^[0-9\.]+" | awk '{ print $1 * 1000.0 }' >> benches/$output
+        mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal | grep -oE "^[0-9\.]+" >> benches/$output
       else
         nodelist=$(head -n $i hostfile.txt | awk 'BEGIN { out="" } { out=$1 ":20283," out } END { print out }')
-        ${wdir}fractal-cppa -n "$nodelist" 2>&1 | awk '{ print $1 * 1000.0 }' >> benches/$output
+        ${wdir}fractal-cppa -n "$nodelist" >> benches/$output
       fi
     done
   done
