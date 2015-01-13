@@ -22,13 +22,17 @@
 using std::cout;
 using std::endl;
 
+#define VERBOSE(unused) static_cast<void>(0)
+
+//#define VERBOSE(output) cout << ouptut << endl;
+
 namespace boost {
 namespace serialization {
 
 template <class Archive>
 typename ::std::enable_if<Archive::is_saving::value>::type
 serialize(Archive& ar, QByteArray& arr, const unsigned) {
-cout << "serialize QByteArray" << endl;
+  VERBOSE("serialize QByteArray");
   auto count = static_cast<uint32_t>(arr.size());
   ar << count;
   ar.save_binary(arr.constData(), count);
@@ -37,7 +41,7 @@ cout << "serialize QByteArray" << endl;
 template <class Archive>
 typename ::std::enable_if<Archive::is_loading::value>::type
 serialize(Archive& ar, QByteArray& arr, const unsigned) {
-  cout << "deserialize QByteArray" << endl;
+  VERBOSE("deserialize QByteArray");
   uint32_t count;
   ar >> count;
   arr.resize(count);
@@ -77,8 +81,6 @@ struct job_msg {
   template <class Archive>
   void serialize(Archive& ar, const unsigned int) {
     mpi::communicator world;
-cout << "serialize<" << typeid(Archive).name() << ">, rank = " << world.rank() << endl;
-cout << "image_id: " << image_id << endl;
     ar & width;
     ar & height;
     ar & min_re;
@@ -87,16 +89,14 @@ cout << "image_id: " << image_id << endl;
     ar & max_im;
     ar & iterations;
     ar & image_id;
-cout << "image_id: " << image_id << endl;
   }
 };
 
 BOOST_IS_MPI_DATATYPE(job_msg)
-//BOOST_IS_BITWISE_SERIALIZABLE(job_msg)
-//BOOST_CLASS_TRACKING(job_msg, track_never)
+BOOST_IS_BITWISE_SERIALIZABLE(job_msg)
+BOOST_CLASS_TRACKING(job_msg, track_never)
 
-BOOST_IS_MPI_DATATYPE(QByteArray)
-//BOOST_CLASS_TRACKING(QByteArray, track_never)
+BOOST_CLASS_TRACKING(QByteArray, track_never)
 
 using namespace std;
 
@@ -107,6 +107,7 @@ namespace {
 
 const tag_type done_tag = std::numeric_limits<tag_type>::max();
 const size_t max_pending_worker_sends = 3;
+const size_t max_pending_tasks_per_worker = 3;
 
 } // namespace <anonymous>
 
@@ -114,11 +115,18 @@ void worker(mpi::communicator& world) {
   job_msg msg;
   vector<QColor> palette;
   size_t pending_sends = 0;
-  std::array<mpi::request, 3> send_reqs;
+  std::array<mpi::request, max_pending_worker_sends> send_reqs;
   QByteArray ba;
   for (;;) {
     auto st = world.probe();
     if (st.tag() == done_tag) {
+      // make sure all messages are transmitted
+      if (pending_sends > 0) {
+        auto first = send_reqs.begin();
+        auto last = first + pending_sends;
+        mpi::wait_all(first, last);
+        VERBOSE("### " << pending_sends << " sents completed @" << world.rank());
+      }
       return;
     }
     // wait for pending sends to complete if reached max. pending sends
@@ -126,11 +134,10 @@ void worker(mpi::communicator& world) {
       auto first = send_reqs.begin();
       auto last = first + pending_sends;
       auto pos = mpi::wait_some(first, last);
-      cout << "worker: " << std::distance(pos, last) << " sents completed" << endl;
+      VERBOSE("### " << std::distance(pos, last) << " sents completed @" << world.rank());
       pending_sends = std::distance(first, pos);
     }
     world.recv(0, st.tag(), msg);
-    cout << "received image with .id = " << msg.image_id << endl;
     auto img = calculate_mandelbrot(palette, msg.width, msg.height,
                                     msg.iterations, msg.min_re, msg.max_re,
                                     msg.min_im, msg.max_im, false);
@@ -139,7 +146,6 @@ void worker(mpi::communicator& world) {
     buf.open(QIODevice::WriteOnly);
     img.save(&buf, image_format);
     buf.close();
-    cout << "worker: calculated mandelbrot, send image" << endl;
     send_reqs[pending_sends++] = world.isend(0, st.tag(), ba);
   }
 }
@@ -158,7 +164,7 @@ void client(mpi::communicator& world) {
   size_t sent_images = 0;
   fractal_request_stream frs;
   map<tag_type, mandelbrot_task> tasks;
-  list<mpi::request> in_requests;
+  vector<mpi::request> in_requests;
   frs.init(default_width, default_height, default_min_real, default_max_real,
            default_min_imag, default_max_imag, default_zoom);
   auto send_task = [&](int worker) {
@@ -171,7 +177,7 @@ void client(mpi::communicator& world) {
     }
     ++sent_images;
     auto tag = ++id;
-    cout << "send image with ID " << tag << " to worker " << worker << endl;
+    VERBOSE("--> task " << tag << " to worker " << worker);
     auto& task = tasks[tag];
     task.worker = worker;
     task.out = job_msg{frs.request(), default_iterations, tag};
@@ -181,17 +187,18 @@ void client(mpi::communicator& world) {
     in_requests.push_back(world.irecv(worker, tag, task.in));
   };
   // distribute tasks (initially 3 per worker)
-  for (int j = 0; j < 3; ++j) {
+  for (size_t j = 0; j < max_pending_tasks_per_worker; ++j) {
     for (int i = 1; i < world.size(); ++i) {
       send_task(i);
     }
   }
-  //vector<mpi::status> statuses;
+  vector<mpi::status> statuses;
   while (received_images < max_images) {
     auto ipair = mpi::wait_some(in_requests.begin(), in_requests.end(),
                                 std::back_inserter(statuses));
+    in_requests.erase(ipair.second, in_requests.end());
     for (auto s : statuses) {
-      cout << "client: received image with tag " << s.tag() << endl;
+      VERBOSE("<-- task with tag " << s.tag() << " completed");
       auto i = tasks.find(s.tag());
       if (i == tasks.end()) {
         cerr << "*** received message with unexpected tag ***" << endl;
@@ -205,7 +212,6 @@ void client(mpi::communicator& world) {
       send_task(worker);
     }
     statuses.clear();
-    in_requests.erase(ipair.second, in_requests.end());
   }
   vector<mpi::request> done_requests;
   for (int i = 1; i < world.size(); ++i) {
