@@ -19,12 +19,16 @@
 #include "calculate_fractal.hpp"
 #include "fractal_request_stream.hpp"
 
+using std::cout;
+using std::endl;
+
 namespace boost {
 namespace serialization {
 
 template <class Archive>
 typename ::std::enable_if<Archive::is_saving::value>::type
 serialize(Archive& ar, QByteArray& arr, const unsigned) {
+cout << "serialize QByteArray" << endl;
   auto count = static_cast<uint32_t>(arr.size());
   ar << count;
   ar.save_binary(arr.constData(), count);
@@ -33,6 +37,7 @@ serialize(Archive& ar, QByteArray& arr, const unsigned) {
 template <class Archive>
 typename ::std::enable_if<Archive::is_loading::value>::type
 serialize(Archive& ar, QByteArray& arr, const unsigned) {
+  cout << "deserialize QByteArray" << endl;
   uint32_t count;
   ar >> count;
   arr.resize(count);
@@ -41,6 +46,8 @@ serialize(Archive& ar, QByteArray& arr, const unsigned) {
 
 } // namespace serialization
 } // namespace boost
+
+namespace mpi = boost::mpi;
 
 struct job_msg {
 
@@ -69,6 +76,9 @@ struct job_msg {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int) {
+    mpi::communicator world;
+cout << "serialize<" << typeid(Archive).name() << ">, rank = " << world.rank() << endl;
+cout << "image_id: " << image_id << endl;
     ar & width;
     ar & height;
     ar & min_re;
@@ -77,103 +87,131 @@ struct job_msg {
     ar & max_im;
     ar & iterations;
     ar & image_id;
+cout << "image_id: " << image_id << endl;
   }
 };
 
-namespace boost {
-namespace mpi {
+BOOST_IS_MPI_DATATYPE(job_msg)
+//BOOST_IS_BITWISE_SERIALIZABLE(job_msg)
+//BOOST_CLASS_TRACKING(job_msg, track_never)
 
-template <>
-struct is_mpi_datatype<job_msg> : mpl::true_ { };
-
-} // namespace mpi
-} // namespace boost
-
-BOOST_IS_BITWISE_SERIALIZABLE(job_msg)
+BOOST_IS_MPI_DATATYPE(QByteArray)
+//BOOST_CLASS_TRACKING(QByteArray, track_never)
 
 using namespace std;
-namespace mpi = boost::mpi;
 
 typedef int rank_type;
 typedef int tag_type;
 
-namespace { const tag_type done_tag = std::numeric_limits<tag_type>::max(); }
+namespace {
+
+const tag_type done_tag = std::numeric_limits<tag_type>::max();
+const size_t max_pending_worker_sends = 3;
+
+} // namespace <anonymous>
 
 void worker(mpi::communicator& world) {
   job_msg msg;
   vector<QColor> palette;
-  mpi::request req;
+  size_t pending_sends = 0;
+  std::array<mpi::request, 3> send_reqs;
   QByteArray ba;
   for (;;) {
     auto st = world.probe();
     if (st.tag() == done_tag) {
       return;
     }
+    // wait for pending sends to complete if reached max. pending sends
+    if (pending_sends == max_pending_worker_sends) {
+      auto first = send_reqs.begin();
+      auto last = first + pending_sends;
+      auto pos = mpi::wait_some(first, last);
+      cout << "worker: " << std::distance(pos, last) << " sents completed" << endl;
+      pending_sends = std::distance(first, pos);
+    }
     world.recv(0, st.tag(), msg);
+    cout << "received image with .id = " << msg.image_id << endl;
     auto img = calculate_mandelbrot(palette, msg.width, msg.height,
                                     msg.iterations, msg.min_re, msg.max_re,
                                     msg.min_im, msg.max_im, false);
-    req.wait(); // wait for last send to finish
     ba.clear();
     QBuffer buf{&ba};
     buf.open(QIODevice::WriteOnly);
     img.save(&buf, image_format);
     buf.close();
-    req = world.isend(0, st.tag(), ba);
+    cout << "worker: calculated mandelbrot, send image" << endl;
+    send_reqs[pending_sends++] = world.isend(0, st.tag(), ba);
   }
 }
+
+struct mandelbrot_task {
+  int worker;
+  job_msg out;
+  QByteArray in;
+  mpi::request out_req;
+  //mpi::request in_req;
+};
 
 void client(mpi::communicator& world) {
   tag_type id = 0;
   size_t received_images = 0;
+  size_t sent_images = 0;
   fractal_request_stream frs;
-  map<tag_type, job_msg> out;
-  map<tag_type, QByteArray> in;
-  vector<mpi::request> requests;
+  map<tag_type, mandelbrot_task> tasks;
+  list<mpi::request> in_requests;
   frs.init(default_width, default_height, default_min_real, default_max_real,
            default_min_imag, default_max_imag, default_zoom);
-  auto send_job = [&](int worker) {
+  auto send_task = [&](int worker) {
     if (!frs.next()) {
       cerr << "*** frs.next() failed ***" << endl;
       abort();
     }
-    auto t = ++id;
-    auto r1 = out.insert(
-      make_pair(t, job_msg{frs.request(), default_iterations, t}));
-    requests.push_back(world.isend(worker, t, r1.first->second));
-    auto r2 = in.insert(make_pair(t, QByteArray()));
-    requests.push_back(world.irecv(worker, t, r2.first->second));
+    if (sent_images == max_images) {
+      return;
+    }
+    ++sent_images;
+    auto tag = ++id;
+    cout << "send image with ID " << tag << " to worker " << worker << endl;
+    auto& task = tasks[tag];
+    task.worker = worker;
+    task.out = job_msg{frs.request(), default_iterations, tag};
+    task.out_req = world.isend(worker, tag, task.out);
+    //task.in_req = world.irecv(worker, tag, task.in);
+    //in_requests.push_back(task.in_req);
+    in_requests.push_back(world.irecv(worker, tag, task.in));
   };
-  // distribute initial tasks (initially 3 per worker)
-  for (int i = 1; i < world.size(); ++i) {
-    for (size_t j = 0; j < 3; ++j) {
-      send_job(i);
+  // distribute tasks (initially 3 per worker)
+  for (int j = 0; j < 3; ++j) {
+    for (int i = 1; i < world.size(); ++i) {
+      send_task(i);
     }
   }
-  vector<mpi::status> statuses;
+  //vector<mpi::status> statuses;
   while (received_images < max_images) {
-    auto ipair = mpi::wait_some(requests.begin(), requests.end(),
+    auto ipair = mpi::wait_some(in_requests.begin(), in_requests.end(),
                                 std::back_inserter(statuses));
-    requests.erase(ipair.second, requests.end());
     for (auto s : statuses) {
-      if (s.source() == 0) {
-        // outgoing message (clear buffer)
-        out.erase(s.tag());
-      } else {
-        ++received_images;
-        in.erase(s.tag());
-        if (received_images < max_images) {
-          // enqueue next job
-          send_job(s.source());
-        }
+      cout << "client: received image with tag " << s.tag() << endl;
+      auto i = tasks.find(s.tag());
+      if (i == tasks.end()) {
+        cerr << "*** received message with unexpected tag ***" << endl;
+        return;
       }
+      ++received_images;
+      auto worker = i->second.worker;
+      // remove task from cache
+      tasks.erase(i);
+      // send next task
+      send_task(worker);
     }
     statuses.clear();
+    in_requests.erase(ipair.second, in_requests.end());
   }
+  vector<mpi::request> done_requests;
   for (int i = 1; i < world.size(); ++i) {
-    world.send(i, done_tag);
+    done_requests.push_back(world.isend(i, done_tag));
   }
-  mpi::wait_all(requests.begin(), requests.end());
+  mpi::wait_all(done_requests.begin(), done_requests.end());
 }
 
 int main(int argc, char** argv) {
