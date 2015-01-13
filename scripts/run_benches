@@ -4,18 +4,27 @@ start=4
 end=64
 step=4
 wdir="/home/triebe/gitrepos/fractal-benchmark/build/bin/"
-# connect to all vms to force load mpi module
-for i in $(cat hostfile.txt); do
-  { ssh $i '/home/triebe/gitrepos/fractal-benchmark/build/bin/fractal-cppa -w; exit'; } 2> /dev/null
+# make sure nothing is running
+for i in $(head -n 64 hostfile.txt); do
+  ssh $i 'killall fractal-cppa' >/dev/null &
 done
+sleep 5
 # start benchmark
-for bench in mpi caf ; do
-  for i in $(seq ${start} ${step} ${end}); do
+for bench in caf ; do
+  if [[ $bench == "caf" ]]; then
+    # connect to all vms to force load mpi module
+    for i in $(head -n 64 hostfile.txt); do
+      ssh $i '/home/triebe/gitrepos/fractal-benchmark/build/bin/fractal-cppa -w' >/dev/null &
+    done
+    sleep 5
+  fi
+  for i in $(seq $start $step $end); do
+  #for i in 64 60 32 16; do
     nodes=$(($i+1))
-    for j in $(seq -w 1 ${repetitions}); do
+    for j in $(seq 1 $repetitions); do
       output=${i}_machines_runtime_${bench}_distributed_mandelbrot.txt
       if [[ $bench == "mpi" ]]; then
-        { /usr/bin/time -f "%e" mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal >/dev/null; } |& awk '{ print $1 * 1000.0 }' 2>> $output
+        /usr/bin/time -f "%e" mpirun -np $nodes --hostfile hostfile.txt --wdir $wdir mpi-fractal >/dev/null; 2>> benches/$output
       else
         nodelist=$(head -n $i hostfile.txt | awk 'BEGIN { out="" } { out=$1 ":20283," out } END { print out }')
         /usr/bin/time -f "%e" ${wdir}fractal-cppa -n "$nodelist" 2>&1 | awk '{ print $1 * 1000.0 }' >> $output
