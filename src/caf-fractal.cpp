@@ -1,6 +1,8 @@
 #include <map>
 #include <limits>
 #include <string>
+#include <vector>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <type_traits>
@@ -137,6 +139,7 @@ int main(int argc, char** argv) {
       cerr << "not started as worker but nodes list is empty" << endl;
       return -1;
     }
+    vector<actor> actors;
     auto c = spawn<client>();
     for (auto& node : nodes) {
       auto entry = split(node, ':');
@@ -147,7 +150,7 @@ int main(int argc, char** argv) {
       try {
         auto w = remote_actor(entry[0],
                               static_cast<uint16_t>(atoi(entry[1].c_str())));
-        anon_send(c, w);
+        actors.push_back(w);
       }
       catch (std::exception& e) {
         cerr << "exception while connection to " << node << endl
@@ -155,6 +158,14 @@ int main(int argc, char** argv) {
         return -2;
       }
     }
+    auto t1 = chrono::high_resolution_clock::now();
+    for (auto& w : actors) {
+      anon_send(c, w);
+    }
+    await_all_actors_done();
+    auto t2 = chrono::high_resolution_clock::now();
+    auto diff = chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
+    cout << diff << endl;
   }
   await_all_actors_done();
   shutdown();

@@ -1,6 +1,7 @@
 #include <map>
 #include <limits>
 #include <string>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <type_traits>
@@ -224,7 +225,11 @@ int main(int argc, char** argv) {
   mpi::environment env(argc, argv);
   mpi::communicator world;
   if (world.rank() == 0) {
+    auto t1 = std::chrono::high_resolution_clock::now();
     client(world);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    cout << diff << endl;
   } else {
     worker(world);
   }
