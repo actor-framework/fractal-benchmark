@@ -12,7 +12,6 @@
 #include <QByteArray>
 
 #include "caf/all.hpp"
-#include "cppa/cppa.hpp"
 #include "caf/io/all.hpp"
 
 #include "config.hpp"
@@ -23,6 +22,7 @@
 
 using namespace std;
 using namespace caf;
+using namespace caf::io;
 
 std::vector<std::string> split(const std::string& str, char delim,
                                bool keep_empties = false) {
@@ -114,22 +114,22 @@ int main(int argc, char** argv) {
   // announce some messaging types
   announce(typeid(QByteArray), uniform_type_info_ptr{new q_byte_array_info});
   // read command line options
-  bool is_worker = false;
   uint16_t port = 20283;
   string nodes_str;
-  options_description desc;
-  bool args_valid = match_stream<string>(argv + 1, argv + argc) (
-    // general options
-    on_opt0('w', "worker", &desc, "run in worker mode", "general")     >> set_flag(is_worker),
-    on_opt0('h', "help", &desc, "print this text", "general")          >> print_desc_and_exit(&desc),
-    // worker options
-    on_opt1('p', "port", &desc, "set port (default: 20283)", "worker") >> rd_arg(port),
-    // client options
-    on_opt1('n', "nodes", &desc, "set worker nodes", "client")         >> rd_arg(nodes_str)
-  );
-  if (!args_valid) {
-    print_desc_and_exit(&desc)();
+  auto res = message_builder(argv + 1, argv + argc).extract_opts({
+    {"worker,w", "run in worker mode"},
+    {"port,p", "set port (default: 2083)", port},
+    {"nodes,n", "set worker nodes", nodes_str}
+  });
+  if (res.opts.count("help") > 0) {
+    cout << res.helptext << endl;
+    return 0;
   }
+  if (! res.error.empty()) {
+    cerr << res.error << endl;
+    return 1;
+  }
+  auto is_worker = res.opts.count("worker") > 0;
   // run either as worker or client
   if (is_worker) {
     io::publish(spawn<worker>(), port);

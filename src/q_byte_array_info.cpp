@@ -4,7 +4,7 @@ using namespace std;
 using namespace caf;
 
 q_byte_array_info::q_byte_array_info()
-    : caf::detail::abstract_uniform_type_info<QByteArray>("QByteArray") {
+    : caf::abstract_uniform_type_info<QByteArray>("QByteArray") {
   // nop
 }
 
