@@ -15,4 +15,3 @@ class q_byte_array_info
 };
 
 #endif
-

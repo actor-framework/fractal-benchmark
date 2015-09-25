@@ -6,6 +6,10 @@
 #include <iostream>
 #include <type_traits>
 
+#include "caf/config.hpp"
+
+CAF_PUSH_WARNINGS
+
 #include <boost/mpi.hpp>
 #include <boost/serialization/string.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -14,6 +18,8 @@
 #include <QFile>
 #include <QBuffer>
 #include <QByteArray>
+
+CAF_POP_WARNINGS
 
 #include "config.hpp"
 #include "fractal_request.hpp"
@@ -139,14 +145,10 @@ void worker(mpi::communicator& world) {
       pending_sends = std::distance(first, pos);
     }
     world.recv(0, st.tag(), msg);
-    auto img = calculate_mandelbrot(palette, msg.width, msg.height,
-                                    msg.iterations, msg.min_re, msg.max_re,
-                                    msg.min_im, msg.max_im, false);
     ba.clear();
-    QBuffer buf{&ba};
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, image_format);
-    buf.close();
+    calculate_mandelbrot(ba, palette, msg.width, msg.height,
+                         msg.iterations, msg.min_re, msg.max_re,
+                         msg.min_im, msg.max_im, false);
     send_reqs[pending_sends++] = world.isend(0, st.tag(), ba);
   }
 }

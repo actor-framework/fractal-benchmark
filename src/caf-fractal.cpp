@@ -20,6 +20,8 @@
 #include "calculate_fractal.hpp"
 #include "fractal_request_stream.hpp"
 
+//#define WRITE_IMAGES
+
 using namespace std;
 using namespace caf;
 using namespace caf::io;
@@ -41,16 +43,12 @@ class worker : public event_based_actor {
  public:
   behavior make_behavior() {
     return {
-      [=](uint32_t width, uint32_t height, float_type min_re,
-         float_type max_re, float_type min_im, float_type max_im,
-         uint32_t iterations) {
-        auto img = calculate_mandelbrot(m_palette, width, height, iterations,
-                                        min_re, max_re, min_im, max_im, false);
+      [=](uint32_t width, uint32_t height, float_type min_re, float_type max_re,
+          float_type min_im, float_type max_im, uint32_t iterations) {
         QByteArray ba;
-        QBuffer buf{&ba};
-        buf.open(QIODevice::WriteOnly);
-        img.save(&buf, image_format);
-        buf.close();
+        calculate_mandelbrot(ba, m_palette, width, height, iterations,
+                             min_re, max_re, min_im, max_im, false);
+        cout << "ba.size = " << ba.size() << endl;
         return make_message(ba, this);
       }
     };
@@ -81,12 +79,20 @@ class client : public event_based_actor {
         cerr << "*** critical: worker failed ***" << endl;
         abort();
       },
-      [=](const QByteArray&, const actor& worker) {
+      [=](const QByteArray& ba, const actor& worker) {
+#       ifdef WRITE_IMAGES
+          cout << "ba.size = " << ba.size() << endl;
+          QFile file(QString("fractal-%1.png").arg(m_received_images));
+          file.open(QIODevice::WriteOnly);
+          file.write(ba);
+          file.close();
+#       endif
         if (++m_received_images == max_images) {
           quit();
         } else {
           send_job(worker);
         }
+        static_cast<void>(ba); // avoid unused argument warning
       }
     };
   }
@@ -101,6 +107,10 @@ class client : public event_based_actor {
     }
     ++m_sent_images;
     auto fr = m_frs.request();
+    cout << "send(worker, " << width(fr) << ", " << height(fr) << ", "
+         << min_re(fr) << ", " << max_re(fr) << ", " << min_im(fr) << ","
+         << max_im(fr) << ", " << default_iterations << ");"
+         << endl;
     send(worker, width(fr), height(fr), min_re(fr), max_re(fr), min_im(fr),
          max_im(fr), default_iterations);
   }
@@ -111,6 +121,19 @@ class client : public event_based_actor {
 };
 
 int main(int argc, char** argv) {
+
+  {
+    auto t1 = chrono::high_resolution_clock::now();
+    std::vector<char> stuff;
+    vector<QColor> palette;
+    calculate_mandelbrot(stuff, palette, 1920, 1080, 1000, -1.05973f, 1.28927f, -0.665529f, 0.655783f, true);
+    auto t2 = chrono::high_resolution_clock::now();
+    auto diff = chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
+    cout << diff << endl;
+    return 0;
+  }
+
+
   // announce some messaging types
   announce(typeid(QByteArray), uniform_type_info_ptr{new q_byte_array_info});
   // read command line options
@@ -118,7 +141,7 @@ int main(int argc, char** argv) {
   string nodes_str;
   auto res = message_builder(argv + 1, argv + argc).extract_opts({
     {"worker,w", "run in worker mode"},
-    {"port,p", "set port (default: 2083)", port},
+    {"port,p", "set port (default: 20283)", port},
     {"nodes,n", "set worker nodes", nodes_str}
   });
   if (res.opts.count("help") > 0) {

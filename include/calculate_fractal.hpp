@@ -5,8 +5,9 @@
 #include <vector>
 #include <iostream>
 
-#include <QColor>
 #include <QImage>
+#include <QColor>
+#include <QIODevice>
 
 #include "config.hpp"
 
@@ -23,12 +24,48 @@ inline void calculate_palette_mandelbrot(std::vector<QColor>& storage,
   storage.push_back(QColor(qRgb(0,0,0)));
 }
 
-template <typename FloatType>
-QImage calculate_mandelbrot(std::vector<QColor>& palette, uint32_t width,
-                            uint32_t height, uint32_t iterations,
-                            FloatType min_re, FloatType max_re,
-                            FloatType min_im, FloatType max_im,
-                            bool fracs_changed) {
+template <class Storage>
+class buffer : public QIODevice {
+public:
+  buffer(Storage& storage, QObject* parent = nullptr)
+      : QIODevice(parent),
+        pos_(0),
+        data_(storage) {
+    // nop
+  }
+
+  bool open(OpenMode mode) override {
+    QIODevice::open(mode);
+    return true;
+  }
+
+  void close() override {
+    // nop
+  }
+
+protected:
+  qint64 readData(char* data, qint64 maxSize) override {
+    return maxSize;
+  }
+
+  qint64 writeData(const char* data, qint64 num_bytes) override {
+    auto last = data + static_cast<ptrdiff_t>(num_bytes);
+    for (; data != last; ++data)
+      data_.push_back(*data);
+    return num_bytes;
+  }
+
+private:
+ qint64 pos_;
+ Storage& data_;
+};
+
+template <class Storage, class FloatType>
+void calculate_mandelbrot(Storage& storage, std::vector<QColor>& palette,
+                          uint32_t width, uint32_t height, uint32_t iterations,
+                          FloatType min_re, FloatType max_re,
+                          FloatType min_im, FloatType max_im,
+                          bool fracs_changed) {
   if ((palette.size() != (iterations + 1)) || fracs_changed)
     calculate_palette_mandelbrot(palette, iterations);
   auto re_factor = (max_re - min_re) / (width - 1);
@@ -60,7 +97,10 @@ QImage calculate_mandelbrot(std::vector<QColor>& palette, uint32_t width,
       image.setPixel(x, y, palette[iteration].rgb());
     }
   }
-  return image;
+  buffer<Storage> buf{storage};
+  buf.open(QIODevice::WriteOnly);
+  image.save(&buf, image_format);
+  buf.close();
 }
 
 #endif // CALCULATE_FRACTAL_HPP

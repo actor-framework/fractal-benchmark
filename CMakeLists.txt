@@ -58,24 +58,22 @@ set (CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(Qt4 REQUIRED QtCore QtGui)
 
-find_package(Libcaf COMPONENTS core io)
+find_package(Libcaf REQUIRED COMPONENTS core io)
 
 file(GLOB HEADERS "include/*.hpp")
 
-if(LIBCAF_FOUND)
-  # we need this to be able to include headers produced by uic in our code
-  # (CMAKE_BINARY_DIR holds a path to the build directory, while INCLUDE_DIRECTORIES() works just like INCLUDEPATH
-  # from qmake)
-  include_directories(. include ${QT_INCLUDES} ${LIBCAF_INCLUDE_DIRS})
-  set(SOURCES_CAF
-      src/config.cpp
-      src/q_byte_array_info.cpp
-      src/caf-fractal.cpp
-      src/fractal_request_stream.cpp)
-  add_executable(fractal-cppa ${SOURCES_CAF} ${HEADERS})
-  target_link_libraries(fractal-cppa ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES}
-                        ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
-endif()
+# we need this to be able to include headers produced by uic in our code
+# (CMAKE_BINARY_DIR holds a path to the build directory, while INCLUDE_DIRECTORIES() works just like INCLUDEPATH
+# from qmake)
+include_directories(. include ${QT_INCLUDES} ${LIBCAF_INCLUDE_DIRS})
+set(SOURCES_CAF
+    src/config.cpp
+    src/q_byte_array_info.cpp
+    src/caf-fractal.cpp
+    src/fractal_request_stream.cpp)
+add_executable(fractal-cppa ${SOURCES_CAF} ${HEADERS})
+target_link_libraries(fractal-cppa ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES}
+                      ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
 
 ###############################################################################
 #                                    MPI                                      #
@@ -104,3 +102,21 @@ else()
   message(STATUS "skip MPI implementation")
   add_custom_target(mpi_dummy SOURCES ${SOURCES_MPI})
 endif()
+
+###############################################################################
+#                                   misc.                                     #
+###############################################################################
+
+find_package(JNI)
+
+if(JNI_FOUND)
+  include_directories(${JNI_INCLUDE_DIRS})
+  set(JNI_SOURCES src/Mandelbrot.cpp src/config.cpp)
+  set(JNI_HEADERS src/Mandelbrot.h)
+  add_library(wrapper_lib SHARED ${JNI_SOURCES} ${JNI_HEADERS})
+  target_link_libraries(wrapper_lib ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY} ${JNI_LIBRARIES})
+  set_target_properties(wrapper_lib PROPERTIES SOVERSION 1 VERSION 1
+                        OUTPUT_NAME "fractal-benchmark")
+endif()
+
+add_custom_target(gui_dummy SOURCES src/Mandelbrot.java)
