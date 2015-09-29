@@ -193,6 +193,42 @@ else()
   add_custom_target(mpi_dummy SOURCES ${SOURCES_MPI})
 endif()
 
+################################################################################
+#                                    Charm++                                   #
+################################################################################
+
+set(SOURCES_CHARM
+    src/charm_fractal.cpp
+    src/fractal_request_stream.cpp
+    src/config.cpp
+    src/charm_fractal.ci)
+
+set(CAF_CHARM_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+if (EXISTS "${CAF_CHARM_COMPILER}")
+  add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm_fractal.def.h ${CAF_CHARM_PATH}/charm_fractal.decl.h
+      COMMAND ${CAF_CHARM_COMPILER} ${CAF_CHARM_PATH}/charm_fractal.ci -std=c++11 -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     DEPENDS ${CAF_CHARM_PATH}/charm_fractal.ci
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}
+                     VERBATIM)
+  add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm_fractal.o
+      COMMAND ${CAF_CHARM_COMPILER} -c ${CAF_CHARM_PATH}/charm_fractal.cpp -std=c++11 -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     DEPENDS ${CAF_CHARM_PATH}/charm_fractal.cpp ${CAF_CHARM_PATH}/charm_fractal.def.h ${CAF_CHARM_PATH}/charm_fractal.decl.h
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}
+                     VERBATIM)
+  add_custom_command(OUTPUT ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
+                     COMMAND ${CAF_CHARM_COMPILER} ${CAF_CHARM_PATH}/charm_fractal.o -o ${EXECUTABLE_OUTPUT_PATH}/charm_fractal -O3 -language charm++
+                     DEPENDS ${CAF_CHARM_PATH}/charm_fractal.o
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}
+                     VERBATIM)
+  add_custom_target(charm_benchmarks
+                    SOURCES ${SOURCES_CHARM}
+                    DEPENDS ${CAF_CHARM_PATH}/charm_fractal.o)
+  add_dependencies(all_benchmarks charm_benchmarks)
+else()
+  message("Disable charm++ benchmark: no compiler found")
+endif()
+
 ###############################################################################
 #                                   misc.                                     #
 ###############################################################################
