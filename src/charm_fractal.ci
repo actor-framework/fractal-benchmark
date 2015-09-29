@@ -1,0 +1,15 @@
+mainmodule charm_fractal {
+
+  mainchare main {
+    entry main(CkArgMsg*);
+  };
+  
+  /*chare worker {
+
+  };
+
+  chare client {
+
+
+  };*/
+};
