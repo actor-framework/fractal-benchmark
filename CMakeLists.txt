@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(fractal-benchmark C CXX)
 
+add_custom_target(all_benchmarks ALL)
+
 # silence policy CMP0042 warning by enabling RPATH explicitly
 if(APPLE AND NOT DEFINED CMAKE_MACOSX_RPATH)
   set(CMAKE_MACOSX_RPATH true)
@@ -52,7 +54,7 @@ endif ()
 
 macro(add_xxx_benchmark benchname dir name src_ending bin_ending out_path)
   set(OUT_FILE ${out_path}/${name}.${bin_ending})
-  set(SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/${dir}/${name}.${src_ending})
+  set(SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/${name}.${src_ending})
   set(CAF_${benchname}_SRC_FILES ${SRC_FILE} ${CAF_${benchname}_SRC_FILES})
   set(CAF_${benchname}_${name}_OUT ${OUT_FILE})
   set(CAF_${benchname}_OUT_FILES ${OUT_FILE} ${CAF_${benchname}_OUT_FILES})
@@ -68,10 +70,10 @@ endmacro()
 # make files show up in GUI even if not building a particular benchmark
 macro(add_dummy_target benchname src_ending)
   # check all aditional dependency flags
-  set(globstr "${CMAKE_CURRENT_SOURCE_DIR}/src/${benchname}/*.${src_ending}")
+  set(globstr "${CMAKE_CURRENT_SOURCE_DIR}/src/*.${src_ending}")
   foreach(additional_ending ${ARGN})
     set(globstr ${globstr}
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/${benchname}/*.${additional_ending}")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.${additional_ending}")
   endforeach()
   file(GLOB_RECURSE source_files ${globstr})
   add_custom_target(caf_${benchname}_dummy SOURCES ${source_files})
@@ -105,17 +107,17 @@ endif()
 # add targets for Scala benchmarks
 if(NOT CAF_NO_SCALA_BENCHMARKS)
   message(STATUS "Add Scala benchmarks to build (found ${ScalacVersion})")
-  set(CLASS_PATH ${EXECUTABLE_OUTPUT_PATH}/org/caf/scala)
+  set(CLASS_PATH ${EXECUTABLE_OUTPUT_PATH}/org/caf) #/scala)
   set(CAF_SCALA_COMPILER_OPTS -optimize)
   macro(add_scala_benchmark name)
     add_xxx_benchmark(SCALA scala ${name} scala class ${CLASS_PATH} ${ARGN})
   endmacro()
-  #add_scala_benchmark(utility)
+  add_scala_benchmark(scala-requests)
   add_scala_benchmark(scala-fractal ${CAF_SCALA_utility_OUT})
   add_custom_target(scala_benchmarks
                     SOURCES ${CAF_SCALA_SRC_FILES}
                     DEPENDS ${CAF_SCALA_OUT_FILES})
-  #add_dependencies(all_benchmarks scala_benchmarks)
+  add_dependencies(all_benchmarks scala_benchmarks)
   set(CAF_COMPILED_BENCHES "scala ${CAF_COMPILED_BENCHES}")
 else()
   add_dummy_target(scala scala)
