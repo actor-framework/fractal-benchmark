@@ -1,4 +1,4 @@
-#include "Mandelbrot.h"
+#include "org_caf_Mandelbrot.h"
 
 #include <QColor>
 
@@ -43,11 +43,11 @@ private:
   jobject data_;
 };
 
-void JNICALL Java_Mandelbrot_calculate(JNIEnv* env, jclass, jobject result,
-                                       jint width, jint height, jint iterations,
-                                       jfloat min_re, jfloat max_re,
-                                       jfloat min_im, jfloat max_im,
-                                       jboolean fracs_changed) {
+void JNICALL Java_org_caf_Mandelbrot_calculate(JNIEnv* env, jclass, jobject result,
+                                               jint width, jint height, jint iterations,
+                                               jfloat min_re, jfloat max_re,
+                                               jfloat min_im, jfloat max_im,
+                                               jboolean fracs_changed) {
   if (! initialized)
     init_jni(env);
   array_list_writer storage{env, result};
