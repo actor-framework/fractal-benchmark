@@ -121,19 +121,6 @@ class client : public event_based_actor {
 };
 
 int main(int argc, char** argv) {
-
-  {
-    auto t1 = chrono::high_resolution_clock::now();
-    std::vector<char> stuff;
-    vector<QColor> palette;
-    calculate_mandelbrot(stuff, palette, 1920, 1080, 1000, -1.05973f, 1.28927f, -0.665529f, 0.655783f, true);
-    auto t2 = chrono::high_resolution_clock::now();
-    auto diff = chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
-    cout << diff << endl;
-    return 0;
-  }
-
-
   // announce some messaging types
   announce(typeid(QByteArray), uniform_type_info_ptr{new q_byte_array_info});
   // read command line options
@@ -142,10 +129,32 @@ int main(int argc, char** argv) {
   auto res = message_builder(argv + 1, argv + argc).extract_opts({
     {"worker,w", "run in worker mode"},
     {"port,p", "set port (default: 20283)", port},
-    {"nodes,n", "set worker nodes", nodes_str}
+    {"nodes,n", "set worker nodes", nodes_str},
+    {"generate-stream", "generates values for the fractal stream"}
   });
   if (res.opts.count("help") > 0) {
     cout << res.helptext << endl;
+    return 0;
+  }
+  if (res.opts.count("generate-stream") > 0) {
+    fractal_request_stream frs;
+    frs.init(default_width, default_height, default_min_real,
+             default_max_real, default_min_imag, default_max_imag,
+             default_zoom);
+    cout << "{" << endl;
+    for (size_t i = 0; i < max_images; ++i) {
+      if (i > 0) {
+        cout << "," << endl;
+      } else {
+        cout << endl;
+      }
+      frs.next();
+      auto fr = frs.request();
+      cout << "  { " << width(fr) << ", " << height(fr) << ", "
+           << min_re(fr) << ", " << max_re(fr) << ", " << min_im(fr) << ","
+           << max_im(fr) << ", " << default_iterations << " }";
+    }
+    cout << endl << "}" << endl;
     return 0;
   }
   if (! res.error.empty()) {
