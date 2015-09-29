@@ -123,6 +123,13 @@ else()
   add_dummy_target(scala scala)
 endif()
 
+################################################################################
+#                                    Erlang                                    #
+################################################################################
+
+add_custom_target(erlang_dummy SOURCES src/fractal.erl src/fractal_nif.cpp)
+
+
 ###############################################################################
 #                              FRACTAL-CPPA                                   #
 ###############################################################################
@@ -138,6 +145,9 @@ find_package(Qt4 REQUIRED QtCore QtGui)
 find_package(Libcaf REQUIRED COMPONENTS core io)
 
 file(GLOB HEADERS "include/*.hpp")
+
+message(STATUS "Qt headers: ${QT_INCLUDES}")
+message(STATUS "Qt libraries: ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY}")
 
 # we need this to be able to include headers produced by uic in our code
 # (CMAKE_BINARY_DIR holds a path to the build directory, while INCLUDE_DIRECTORIES() works just like INCLUDEPATH
