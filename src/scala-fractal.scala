@@ -1,8 +1,5 @@
 package org.caf
 
-import org.caf.Mandelbrot._
-import org.caf.Requests._
-
 import akka.actor._
 
 import com.typesafe.config.ConfigFactory
@@ -14,49 +11,75 @@ import scala.concurrent.duration._
 
 import Console.println
 
-object conf {
-  final val MAX_PENDING_WORKER_SENDS     =    3
-  final val MAX_PENDING_TASKS_PER_WORKER =    3
-  final val MAX_IMAGES                   = 3000
-  var start: Long = 0
-  var end: Long = 0
-}
+import java.lang.{Byte => JByte}
 
-
-case object Done
 case class WorkerAddresses(paths: Array[String])
+
 case class Job(width: Int, height: Int, minRe: Float, maxRe: Float,
                minIm: Float, maxIm: Float, iterations: Int);
-case class Image(img: java.util.ArrayList[java.lang.Byte])
+
+object conf {
+  final val MAX_PENDING_TASKS_PER_WORKER =    3
+  var start: Long = 0
+  var end: Long = 0
+  type Image = java.util.ArrayList[java.lang.Byte]
+}
+
+class Requests(file: String) {
+  private var position = 0
+
+  private val configs = {
+    val f = scala.io.Source.fromFile(file)
+    val res = f.getLines.map{
+      s =>
+        val values = s.split(',')
+        Job(values(0).toInt, values(1).toInt,
+            values(2).toFloat, values(3).toFloat,
+            values(4).toFloat, values(5).toFloat,
+            values(6).toInt)
+    }.toArray
+    f.close
+    res
+  }
+
+  def num() = configs.size
+
+  def atEnd() = position >= configs.size
+
+  def next() = {
+    val res = configs(position)
+    position += 1
+    res
+  }
+}
 
 
 class WorkerActor() extends Actor {
   def receive = {
     case Job(width, height, minRe, maxRe, minIm, maxIm, iterations) => {
-      var buffer = new java.util.ArrayList[java.lang.Byte](102400)
-      println(s"Job($width, $height, $minRe, $maxRe, $minIm, $maxIm, $iterations)")
-      calculate(buffer, width, height, iterations,
-                minRe, maxRe, minIm, maxIm, false)
-      sender ! Image(buffer)
+      var buf = new java.util.ArrayList[java.lang.Byte](102400)
+      //println(s"Job($width, $height, $minRe, $maxRe, $minIm, $maxIm, $iterations)")
+      org.caf.Mandelbrot.calculate(buf, width, height, iterations,
+                                   minRe, maxRe, minIm, maxIm, false)
+      sender ! buf
     }
     case _ => println("Unexpected message")
   }
 }
 
-
 class MasterActor() extends Actor {
   import conf._
 
-  private val requests = new FractalRequests("scala-values.txt")
+  private val requests = new Requests("scala-values.txt")
   private var sentImages     = 0
   private var receivedImages = 0
   private var workers = ArrayBuffer[ActorRef]()
   private var expectedWorkers = 0
 
   def manage(): Receive = {
-    case Image(img: java.util.ArrayList[java.lang.Byte]) =>
+    case img: Image =>
       receivedImages += 1
-      if (receivedImages == MAX_IMAGES) {
+      if (receivedImages == requests.num) {
         conf.end = System.nanoTime
         println(s"${conf.end - conf.start}")
         distributed.global_latch.countDown
@@ -73,7 +96,7 @@ class MasterActor() extends Actor {
     case WorkerAddresses(addresses) =>
       expectedWorkers = addresses.size
       for (a <- addresses) {
-        context.actorSelection(a) ! Identify(a)
+        context.actorSelection(a) ! akka.actor.Identify(a)
       }
       import context.dispatcher
       context.system.scheduler.scheduleOnce(3.seconds, self, ReceiveTimeout)
@@ -98,13 +121,9 @@ class MasterActor() extends Actor {
   def receive = init
 
   private def sendJob(worker: ActorRef) = {
-    if (sentImages != MAX_IMAGES) {
-      if (requests.atEnd())
-        context.system.shutdown()
+    if (! requests.atEnd()) {
       sentImages += 1
-      val (w, h, miR, maR, miI, maI, itr) = requests.request()
-      worker ! Job(w, h, miR, maR, miI, maI, itr)
-      requests.next()
+      worker ! requests.next()
     }
   }
 }

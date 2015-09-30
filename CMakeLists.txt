@@ -62,6 +62,7 @@ macro(add_xxx_benchmark benchname dir name src_ending bin_ending out_path)
                      COMMAND ${CAF_${benchname}_COMPILER}
                              ${CAF_${benchname}_COMPILER_OPTS}
                              ${SRC_FILE}
+                      "-cp" "/Users/neverlord/akka-2.3.14/lib/scala-library.jar:/Users/neverlord/akka-2.3.14/lib/akka/akka-remote_2.10-2.3.14.jar:/Users/neverlord/akka-2.3.14/lib/akka/akka-actor_2.10-2.3.14.jar:${EXECUTABLE_OUTPUT_PATH}"
                      DEPENDS ${SRC_FILE} ${ARGN}
                      WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
                      VERBATIM)
@@ -113,9 +114,10 @@ if(NOT CAF_NO_SCALA_BENCHMARKS)
   set(CLASS_PATH ${EXECUTABLE_OUTPUT_PATH}/org/caf)
   set(CAF_SCALA_COMPILER_OPTS -optimize)
   macro(add_scala_benchmark name)
-    add_xxx_benchmark(SCALA scala ${name} scala class ${CLASS_PATH} ${ARGN})
+    add_xxx_benchmark(SCALA scala ${name} scala class
+                      ${CLASS_PATH}
+                      ${ARGN})
   endmacro()
-  add_scala_benchmark(scala-requests)
   add_scala_benchmark(scala-fractal ${CAF_SCALA_scala-requests_OUT} "${EXECUTABLE_OUTPUT_PATH}/org/caf/Mandelbrot.class")
   add_custom_target(scala_benchmarks
                     SOURCES ${CAF_SCALA_SRC_FILES}
