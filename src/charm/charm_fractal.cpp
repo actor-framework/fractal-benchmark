@@ -39,6 +39,12 @@ private:
 
 class worker : public CBase_worker {
 public:
+    // FIXME: Geht nicht => "CProxy_client is not a type" ...
+    // in .ci file auskommentieren!
+    // Hier fehlt wohl eine fwd deklaration ...
+    /*worker(CProxy_client& master) : m_master(master) {
+
+    }*/
 
   void calculate(uint32_t width, uint32_t height, float_type min_re,
                  float_type max_re, float_type min_im, float_type max_im,
@@ -62,7 +68,8 @@ class client : public CBase_client {
                default_max_real, default_min_imag, default_max_imag,
                default_zoom);
     for (int i = 0; i < workers; ++i) {
-      CProxy_worker w = CProxy_worker::ckNew();
+      // FIXME: Wenn der ctor von worker gefixt, dann das hier einkommentieren...
+      CProxy_worker w = CProxy_worker::ckNew(/*thisProxy*/);
       initial_tasks(w);
     }
   }
@@ -116,6 +123,7 @@ private:
 class main : public CBase_main {
 public:
   main(CkArgMsg* m) {
+    // TODO: Parse args...
     CProxy_client client = CProxy_client::ckNew(4);
     //auto t1 = chrono::high_resolution_clock::now();
     delete m;
