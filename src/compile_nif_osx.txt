@@ -1,0 +1,1 @@
+g++ --std=c++11 -o fractal_nif.so -fpic -bundle -flat_namespace -undefined suppress -I/opt/local/lib/erlang/erts-7.0/include config.cpp fractal_nif.cpp -lerts -L/opt/local/lib/erlang/erts-7.0/lib/ -I/opt/local/include/QtGui -I/opt/local/include/QtCore -I/opt/local/include -I../include -lQtCore -lQtGui -L/opt/local/lib/

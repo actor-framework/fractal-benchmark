@@ -15,3 +15,6 @@ manual/*.toc
 manual/manual.html
 manual/variables.tex
 *.swp
+*.dump
+*.beam
+*.so

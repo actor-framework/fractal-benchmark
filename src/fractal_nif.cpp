@@ -9,16 +9,14 @@
 
 namespace {
 
-constexpr unsigned chunk_size = 200;
+constexpr unsigned chunk_size = 10240; // 10kb chunk size
 
 std::vector<QColor> palette;
 
 class erl_binary_writer {
 public:
-  erl_binary_writer(ErlNifEnv* env) : env_(env) {
-    enif_alloc_binary(chunk_size, &bin_);
-    // first four bytes are reserved for the actual size of the fractal
-    pos_ = 4;
+  erl_binary_writer(ErlNifEnv* env) : env_(env), pos_(0) {
+    enif_alloc_binary(chunk_size * 10, &bin_); // 100kb initial capacity
   }
 
   void push_back(char value) {
@@ -32,13 +30,11 @@ public:
   }
 
   uint32_t size() {
-    return pos_ - 4;
+    return pos_;
   }
 
-  void write_size_to_binary() {
-    auto s = size();
-    char* i = (char*) &s;
-    std::copy(i, i + 4, bin_.data);
+  void shrink_to_fit() {
+    enif_realloc_binary(&bin_, pos_);
   }
 
 private:
@@ -59,7 +55,7 @@ public:
                          getu(argv[0]), getu(argv[1]), getu(argv[2]),
                          getf(argv[3]), getf(argv[4]),
                          getf(argv[5]), getf(argv[6]), getb(argv[7]));
-    storage.write_size_to_binary();
+    storage.shrink_to_fit();
     return enif_make_binary(env_, storage.bin());
   }
 
@@ -90,6 +86,10 @@ private:
   ErlNifEnv* env_;
 };
 
+int upgrade_nif(ErlNifEnv*, void**, void**, ERL_NIF_TERM) {
+  return 0;
+}
+
 ERL_NIF_TERM fractal_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   fractal_nif_impl f{env};
   return f(argc, argv);
@@ -101,4 +101,4 @@ ErlNifFunc nif_funcs[] = {
 
 } // namespace <anonymous>
 
-ERL_NIF_INIT(fractal, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(fractal, nif_funcs, NULL, NULL, upgrade_nif, NULL)
