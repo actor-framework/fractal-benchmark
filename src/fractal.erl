@@ -1,5 +1,5 @@
 -module(fractal).
--export([compute/8, run/0, client/4, worker/1, for_each_line/2, pseudo_worker/0]).
+-export([compute/8, run/1, client/4, worker/1, for_each_line/2, pseudo_worker/0]).
 -on_load(init/0).
 
 init() ->
@@ -21,7 +21,7 @@ worker(Master, First) ->
   receive
     {Width, Height, MinRe, MaxRe, MinIm, MaxIm, Iterations} ->
       Master ! {fractal, self(), compute(Width, Height, Iterations, MinRe, MaxRe, MinIm, MaxIm, First)},
-      worker(false)
+      worker(Master, false)
   end.
 
 for_each_line(Name, Proc) ->
@@ -33,7 +33,7 @@ for_each_line(Device, Proc, Accum) ->
         eof  ->
           file:close(Device), Accum;
         Line ->
-          Proc(lists:filter(fun(Char) -> Char /= $\n end, Line), Accum),
+          Proc(lists:droplast(Line), Accum),
           for_each_line(Device, Proc, Accum + 1)
     end.
 
@@ -57,24 +57,35 @@ client(Values, I, ReceivedImages, NumImages) ->
   receive
     % count incoming images
     {fractal, Pid, _} ->
-      io:format("received image from worker ~p~n", [Pid]),
+      %io:format("received image from worker ~p~n", [Pid]),
       Pid ! element(I, Values),
       client(Values, I + 1, ReceivedImages + 1, NumImages);
     % initially send 3 images to each new worker (ignoring errors)
     {spawned, Pid} ->
-      io:format("new worker: ~p~n", [Pid]),
+      %io:format("new worker: ~p~n", [Pid]),
       Pid ! element(I, Values),
       Pid ! element(I + 1, Values),
       Pid ! element(I + 2, Values),
       client(Values, I + 3, ReceivedImages, NumImages)
   end.
 
-%client(Values, I, Size) ->
-%  io:format("~p~n", [element(I, Values)]),
-%  client(Values, I + 1, Size).
+run(Args) ->
+  [Hostfile|_] = Args,
+  %Values = get_values(),
+  AllValues = get_values(),
+  Values = list_to_tuple(lists:sublist(tuple_to_list(AllValues), tuple_size(AllValues) div 2, tuple_size(AllValues) div 4)),
+  %io:format("calculate ~p images~n", [tuple_size(Values)]),
+  SpawnWorker = fun(X, _) ->
+    self() ! {spawned, spawn(list_to_atom(X), fractal, worker, [self()])}
+  end,
+  for_each_line(Hostfile, SpawnWorker),
+  T0 = erlang:monotonic_time(),
+  client(Values, 1, 1, tuple_size(Values) + 1),
+  T1 = erlang:monotonic_time(),
+  io:format("~p~n", [erlang:convert_time_unit(T1 - T0, native, milli_seconds)]).
 
-run() ->
-  Values = {
+get_values() ->
+  {
     { 1920, 1080, -1.45, 1.45, -0.815625,0.815625, 1000 },
     { 1920, 1080, -1.24762, 1.36238, -0.736499,0.731626, 1000 },
     { 1920, 1080, -1.05973, 1.28927, -0.665529,0.655783, 1000 },
@@ -3075,9 +3086,4 @@ run() ->
     { 1920, 1080, 0.285914, 0.287932, -0.0127503,-0.0116146, 1000 },
     { 1920, 1080, 0.285801, 0.288045, -0.0128134,-0.0115515, 1000 },
     { 1920, 1080, 0.285677, 0.288169, -0.0128835,-0.0114814, 1000 }
-  },
-  SpawnWorker = fun(X, _) ->
-    self() ! {spawned, spawn(list_to_atom(X), fractal, worker, [self()])}
-  end,
-  for_each_line("erl_hostfile.txt", SpawnWorker),
-  client(Values, 1, 1, tuple_size(Values) + 1).
+  }.
