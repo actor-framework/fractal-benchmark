@@ -7,8 +7,8 @@ import com.typesafe.config.ConfigFactory
 import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
-
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
 import Console.println
 
 import java.lang.{Byte => JByte}
@@ -18,11 +18,10 @@ case class WorkerAddresses(paths: Array[String])
 case class Job(width: Int, height: Int, minRe: Float, maxRe: Float,
                minIm: Float, maxIm: Float, iterations: Int);
 
-object conf {
+object global {
   final val MAX_PENDING_TASKS_PER_WORKER =    3
-  var start: Long = 0
-  var end: Long = 0
   type Image = java.util.ArrayList[java.lang.Byte]
+  val latch = new java.util.concurrent.CountDownLatch(1)
 }
 
 class Requests(file: String) {
@@ -44,7 +43,7 @@ class Requests(file: String) {
 
   def num() = configs.size
 
-  def atEnd() = position >= configs.size
+  def atEnd() = position >= num
 
   def next() = {
     val res = configs(position)
@@ -53,72 +52,21 @@ class Requests(file: String) {
   }
 }
 
-
 class WorkerActor() extends Actor {
   def receive = {
     case Job(width, height, minRe, maxRe, minIm, maxIm, iterations) => {
       var buf = new java.util.ArrayList[java.lang.Byte](102400)
-      //println(s"Job($width, $height, $minRe, $maxRe, $minIm, $maxIm, $iterations)")
       org.caf.Mandelbrot.calculate(buf, width, height, iterations,
                                    minRe, maxRe, minIm, maxIm, false)
       sender ! buf
     }
-    case _ => println("Unexpected message")
   }
 }
 
-class MasterActor() extends Actor {
-  import conf._
-
-  private val requests = new Requests("scala-values.txt")
+class MasterActor(workerRefs: List[ActorRef], requests: Requests) extends Actor {
   private var sentImages     = 0
   private var receivedImages = 0
-  private var workers = ArrayBuffer[ActorRef]()
   private var expectedWorkers = 0
-
-  def manage(): Receive = {
-    case img: Image =>
-      receivedImages += 1
-      if (receivedImages == requests.num) {
-        conf.end = System.nanoTime
-        println(s"${conf.end - conf.start}")
-        distributed.global_latch.countDown
-        context.stop(self)
-      } else {
-        sendJob(sender)
-      }
-    case Terminated(w) => println(s"Worker $w died!")
-    case ReceiveTimeout =>
-    case _ => println("Unexpected message")
-  }
-
-  def init(): Receive = {
-    case WorkerAddresses(addresses) =>
-      expectedWorkers = addresses.size
-      for (a <- addresses) {
-        context.actorSelection(a) ! akka.actor.Identify(a)
-      }
-      import context.dispatcher
-      context.system.scheduler.scheduleOnce(3.seconds, self, ReceiveTimeout)
-    case ActorIdentity(path, Some(worker)) =>
-      context.watch(worker)
-      workers += worker
-      if (workers.size == expectedWorkers) {
-        conf.start = System.nanoTime
-        for (i <- 1 to MAX_PENDING_TASKS_PER_WORKER) {
-          for (w <- workers) {
-            sendJob(w)
-          }
-        }
-        context.become(manage())
-      }
-    case ActorIdentity(path, None) =>
-      println(s"Remote actor not available: $path")
-    case ReceiveTimeout => println("Timeout")
-    case _ => println("Unexpected Message")
-  }
-
-  def receive = init
 
   private def sendJob(worker: ActorRef) = {
     if (! requests.atEnd()) {
@@ -126,11 +74,28 @@ class MasterActor() extends Actor {
       worker ! requests.next()
     }
   }
+
+  // send first wave of jobs
+  for (worker <- workerRefs) {
+    context watch worker
+    for (i <- 1 to global.MAX_PENDING_TASKS_PER_WORKER)
+      sendJob(worker)
+  }
+
+  def receive = {
+    case img: global.Image =>
+      receivedImages += 1
+      if (receivedImages == requests.num) {
+        context.stop(self)
+        global.latch.countDown
+      } else {
+        sendJob(sender)
+      }
+    case Terminated(w) => println(s"Worker $w died!")
+  }
 }
 
 object distributed {
-  val global_latch = new java.util.concurrent.CountDownLatch(1)
-
   val workerConf = ConfigFactory.parseString("""
     akka {
       actor {
@@ -184,11 +149,19 @@ object distributed {
     """)
 
   def runMaster(nodes: String) {
-    val addresses = nodes.replace(" ","").split(",")
-    val system = ActorSystem("FractalMasterSystem",
-                               ConfigFactory.load(masterConf))
-    system.actorOf(Props[MasterActor], "master") ! WorkerAddresses(addresses)
-    global_latch.await
+    val system = ActorSystem("FractalMasterSystem", ConfigFactory.load(masterConf))
+    val ibox = Inbox.create(system)
+    val refs = nodes.replace(" ", "").split(",").map {
+      x =>
+        val tout = Duration.create(1, TimeUnit.SECONDS)
+        scala.concurrent.Await.result(system.actorSelection(x).resolveOne(tout), tout)
+    }.toList
+    val requests = new Requests("scala-values.txt")
+    val start = System.nanoTime
+    system.actorOf(Props(new MasterActor(refs, requests)), "master")
+    global.latch.await
+    val end = System.nanoTime
+    println("" + ((end - start) / 1000000))
     system.shutdown
     System.exit(0)
   }
