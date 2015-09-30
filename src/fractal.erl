@@ -1,5 +1,5 @@
 -module(fractal).
--export([compute/8, run/0, client/4, worker/0, for_each_line/2, pseudo_worker/0]).
+-export([compute/8, run/0, client/4, worker/1, for_each_line/2, pseudo_worker/0]).
 -on_load(init/0).
 
 init() ->
@@ -14,13 +14,13 @@ pseudo_worker() ->
       Pid ! What
   end.
 
-worker() ->
-  worker(true).
+worker(Master) ->
+  worker(Master, true).
 
-worker(First) ->
+worker(Master, First) ->
   receive
-    {Pid, Width, Height, MinRe, MaxRe, MinIm, MaxIm, Iterations} ->
-      Pid ! {fractal, self(), compute(Width, Height, Iterations, MinRe, MaxRe, MinIm, MaxIm, First)},
+    {Width, Height, MinRe, MaxRe, MinIm, MaxIm, Iterations} ->
+      Master ! {fractal, self(), compute(Width, Height, Iterations, MinRe, MaxRe, MinIm, MaxIm, First)},
       worker(false)
   end.
 
@@ -57,10 +57,12 @@ client(Values, I, ReceivedImages, NumImages) ->
   receive
     % count incoming images
     {fractal, Pid, _} ->
+      io:format("received image from worker ~p~n", [Pid]),
       Pid ! element(I, Values),
       client(Values, I + 1, ReceivedImages + 1, NumImages);
     % initially send 3 images to each new worker (ignoring errors)
     {spawned, Pid} ->
+      io:format("new worker: ~p~n", [Pid]),
       Pid ! element(I, Values),
       Pid ! element(I + 1, Values),
       Pid ! element(I + 2, Values),
@@ -3075,7 +3077,7 @@ run() ->
     { 1920, 1080, 0.285677, 0.288169, -0.0128835,-0.0114814, 1000 }
   },
   SpawnWorker = fun(X, _) ->
-    self() ! {spawned, spawn(list_to_atom(X), fractal, worker, [])}
+    self() ! {spawned, spawn(list_to_atom(X), fractal, worker, [self()])}
   end,
   for_each_line("erl_hostfile.txt", SpawnWorker),
   client(Values, 1, 1, tuple_size(Values) + 1).
