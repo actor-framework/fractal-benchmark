@@ -210,6 +210,13 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
   foreach(path ${QT_INCLUDES})
     set(QT_INCLUDES_CHARM "-I${path} ${QT_INCLUDES_CHARM}")
   endforeach()
+  set(QT_LIB_PATHS_CHARM "")
+  foreach(path ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
+    if (NOT ${path} STREQUAL "debug" AND NOT ${path} STREQUAL "optimized")
+      set(QT_LIB_PATHS_CHARM "-L${path} ${QT_LIB_PATHS_CHARM}")
+    endif()
+  endforeach()
+  message("Qt Libs (CHARM) ${QT_LIB_PATHS_CHARM}")
   add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm_fractal.def.h
                             ${CAF_CHARM_PATH}/charm_fractal.decl.h
                      COMMAND ${CAF_CHARM_COMPILER}
@@ -231,9 +238,11 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
                      VERBATIM)
   add_custom_command(OUTPUT ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
                      COMMAND ${CAF_CHARM_COMPILER}
-                             ${CAF_CHARM_PATH}/charm_fractal.o
+                             ${QT_LIB_PATHS_CHARM}
+                             ${CAF_CHARM_PATH}/charm_fractal.o ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
+                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
                              -o ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
-                             -O3 -language charm++
+                             -O3 -language charm++ -lQtCore -lQtGui -std=c++11
                      DEPENDS ${CAF_CHARM_PATH}/charm_fractal.o
                      WORKING_DIRECTORY ${CAF_CHARM_PATH}
                      VERBATIM)
