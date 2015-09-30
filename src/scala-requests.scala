@@ -1,24 +1,25 @@
 package org.caf
 
-import Array._
+import scala.collection.mutable.ArrayBuffer
+import scala.io.Source._
 
 object Requests {
-
-  class FractalRequests {
-    final val WIDTH = 1920;
-    final val HEIGHT = 1080;
-    final val ITERATIONS = 1000;
-    final val MIN_RE = -1.9f;  // must be <= 0.0
-    final val MAX_RE =  1.0f;  // must be >= 0.0
-    final val MIN_IM = -0.9f;  // must be <= 0.0
-    final val MAX_IM = MIN_IM + (MAX_RE - MIN_RE) * HEIGHT / WIDTH;
+  class FractalRequests(file: String) {
     private var position = 0
-    private val configs: Array[(Int, Int, Float, Float, Float, Float, Int, Int)]
-      = Array(
-        (WIDTH, HEIGHT, MIN_RE, MAX_RE, MIN_IM, MAX_IM, ITERATIONS, 0),
-        (WIDTH, HEIGHT, MIN_RE, MAX_RE, MIN_IM, MAX_IM, ITERATIONS, 1)
-      )
+    private val configs: List[(Int, Int, Float, Float, Float, Float, Int)] = init(file)
     private val max = configs.size
+
+    def init(path: String): List[(Int, Int, Float, Float, Float, Float, Int)] = {
+      val f = fromFile(file)
+      val lines = f.getLines.toList
+      f.close
+      lines.map{
+        s => val values = s.split(','); (values(0).toInt, values(1).toInt,
+                                         values(2).toFloat, values(3).toFloat,
+                                         values(4).toFloat, values(5).toFloat,
+                                         values(6).toInt)
+      }
+    }
 
     def atEnd() = { position >= max }
     def next() = {
@@ -27,7 +28,7 @@ object Requests {
       }
       atEnd()
     }
-    def request() = { configs(position) }
+    def request(): (Int, Int, Float, Float, Float, Float, Int) = { configs(position) }
   }
 
 }

@@ -141,20 +141,13 @@ int main(int argc, char** argv) {
     frs.init(default_width, default_height, default_min_real,
              default_max_real, default_min_imag, default_max_imag,
              default_zoom);
-    cout << "{" << endl;
     for (size_t i = 0; i < max_images; ++i) {
-      if (i > 0) {
-        cout << "," << endl;
-      } else {
-        cout << endl;
-      }
       frs.next();
       auto fr = frs.request();
-      cout << "  { " << width(fr) << ", " << height(fr) << ", "
-           << min_re(fr) << ", " << max_re(fr) << ", " << min_im(fr) << ","
-           << max_im(fr) << ", " << default_iterations << " }";
+      cout << width(fr) << "," << height(fr) << ","
+           << min_re(fr) << "," << max_re(fr) << ", " << min_im(fr) << ","
+           << max_im(fr) << "," << default_iterations << endl;
     }
-    cout << endl << "}" << endl;
     return 0;
   }
   if (! res.error.empty()) {
