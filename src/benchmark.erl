@@ -69,7 +69,7 @@ run(Args) ->
   Values = list_to_tuple(lists:sublist(tuple_to_list(AllValues), tuple_size(AllValues) div 2, tuple_size(AllValues) div 4)),
   %io:format("calculate ~p images~n", [tuple_size(Values)]),
   SpawnWorker = fun(X, _) ->
-    self() ! {spawned, spawn(list_to_atom(X), fractal, worker, [self()])}
+    self() ! {spawned, spawn(list_to_atom(X), benchmark, worker, [self()])}
   end,
   for_each_line(Hostfile, SpawnWorker),
   T0 = erlang:monotonic_time(),
