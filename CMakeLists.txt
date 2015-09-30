@@ -129,7 +129,7 @@ endif()
 #                                    Erlang                                    #
 ################################################################################
 
-add_custom_target(erlang_dummy SOURCES src/fractal.erl src/fractal_nif.cpp)
+add_custom_target(erlang_dummy SOURCES src/fractal.erl src/fractal_nif.cpp src/benchmark.erl)
 
 
 ###############################################################################
