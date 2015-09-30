@@ -87,7 +87,11 @@ endmacro()
 # search for Scala compiler if not disabled by the user
 if(NOT CAF_NO_SCALA_BENCHMARKS)
   if(NOT CAF_SCALA_COMPILER)
-    set(CAF_SCALA_COMPILER "scalac")
+    if(NOT CAF_SCALA_HOME)
+      set(CAF_SCALA_COMPILER "scalac")
+    else()
+      set(CAF_SCALA_COMPILER "${CAF_SCALA_HOME}/bin/scalac")
+    endif()
   endif()
   execute_process(COMMAND "${CAF_SCALA_COMPILER}" "-version"
                   RESULT_VARIABLE ScalacResult
