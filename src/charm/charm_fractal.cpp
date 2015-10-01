@@ -76,6 +76,7 @@ public:
                  float_type min_re, float_type max_re, float_type min_im,
                  float_type max_im, uint32_t iterations) {
     QByteArray ba;
+    ba.reserve(102400); // reserve 100kb upfront
     calculate_mandelbrot(ba, m_palette, width, height, iterations, min_re,
                          max_re, min_im, max_im, false);
     cb.send(new MyFixedSizeMsg(ba, my_id));
