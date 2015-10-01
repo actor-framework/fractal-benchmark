@@ -39,8 +39,7 @@ class Requests(file: String) {
     res
   }
 
-  //def num() = configs.size
-  def num() = 4
+  def num() = configs.size
 
   def atEnd() = position >= num
 
