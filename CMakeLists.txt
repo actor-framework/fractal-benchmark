@@ -199,6 +199,69 @@ else()
   add_custom_target(mpi_dummy SOURCES ${SOURCES_MPI})
 endif()
 
+################################################################################
+#                                    Charm++                                   #
+################################################################################
+
+set(SOURCES_CHARM
+    src/charm/charm_fractal.cpp
+    src/fractal_request_stream.cpp
+    src/config.cpp
+    src/charm/charm_fractal.ci)
+
+set(CAF_CHARM_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+if (EXISTS "${CAF_CHARM_COMPILER}")
+  set(QT_INCLUDES_CHARM "")
+  foreach(path ${QT_INCLUDES})
+    set(QT_INCLUDES_CHARM "-I${path} ${QT_INCLUDES_CHARM}")
+  endforeach()
+  set(QT_LIB_PATHS_CHARM "")
+  foreach(path ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
+    if (NOT ${path} STREQUAL "debug" AND NOT ${path} STREQUAL "optimized")
+      set(QT_LIB_PATHS_CHARM "-L${path} ${QT_LIB_PATHS_CHARM}")
+    endif()
+  endforeach()
+  message("Qt Libs (CHARM) ${QT_LIB_PATHS_CHARM}")
+  add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.def.h
+                            ${CAF_CHARM_PATH}/charm/charm_fractal.decl.h
+                     COMMAND ${CAF_CHARM_COMPILER}
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.ci -std=c++11
+                             ${QT_INCLUDES_CHARM}
+                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.ci
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
+                     VERBATIM)
+  add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.o
+                     COMMAND ${CAF_CHARM_COMPILER} -c
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.cpp -std=c++11
+                             ${QT_INCLUDES_CHARM}
+                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.cpp
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.def.h
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.decl.h
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
+                     VERBATIM)
+  add_custom_command(OUTPUT ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
+                     COMMAND ${CAF_CHARM_COMPILER}
+                             ${QT_LIB_PATHS_CHARM}
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.o
+                             ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
+                             ${CMAKE_CURRENT_SOURCE_DIR}/src/fractal_request_stream.cpp
+                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                             -o ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
+                             -O3 -language charm++ -lQtCore -lQtGui -std=c++11
+                     DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.o
+                     WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
+                     VERBATIM)
+  add_custom_target(charm_benchmarks
+                    SOURCES ${SOURCES_CHARM}
+                    DEPENDS ${EXECUTABLE_OUTPUT_PATH}/charm_fractal)
+  add_dependencies(all_benchmarks charm_benchmarks)
+else()
+  message("Disable charm++ benchmark: no compiler found")
+endif()
+
 ###############################################################################
 #                                   misc.                                     #
 ###############################################################################

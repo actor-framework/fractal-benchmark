@@ -1,0 +1,23 @@
+mainmodule charm_fractal {
+
+  mainchare main {
+    entry main(CkArgMsg*);
+  };
+
+  array [1D] QByteArray_serialized {
+    entry QByteArray_serialized();
+  };
+
+  chare worker {
+    entry worker();
+    //entry worker(CProxy_client&);
+    entry void calculate(uint32_t width, uint32_t height, float_type min_re, float_type max_re,
+                         float_type min_im, float_type max_im, uint32_t iterations);
+  };
+
+  chare client {
+    entry client(uint32_t workers);
+    entry void initial_tasks(CProxy_worker& w);
+    entry void deliver_byte_array(QByteArray_serialized& ba, CProxy_worker& w);
+  };
+};

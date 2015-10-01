@@ -31,6 +31,8 @@ Usage: $0 [OPTION]... [VAR=VALUE]...
     --no-caf                    build without CAF
     --no-mpi                    build without MPI
 
+    --with-charm=FILE           Path to charm++ compiler
+
   Installation Directories:
     --prefix=PREFIX             installation directory [/usr/local]
     --scala-home=PATH           installation directory of Scala
@@ -190,6 +192,9 @@ while [ $# -ne 0 ]; do
             ;;
         --akka-home=*)
             append_cache_entry CAF_AKKA_HOME PATH "$optarg"
+            ;;
+        --with-charm=*)
+            append_cache_entry CAF_CHARM_COMPILER PATH $optarg
             ;;
         *)
             echo "Invalid option '$1'.  Try $0 --help to see available options."
