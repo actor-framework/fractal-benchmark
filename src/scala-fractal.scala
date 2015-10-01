@@ -100,10 +100,6 @@ object distributed {
     akka {
       actor {
         provider = "akka.remote.RemoteActorRefProvider"
-        serialize-messages = on
-        serializers {
-          proto = "akka.remote.serialization.ProtobufSerializer"
-        }
       }
       remote {
         enabled-transports = ["akka.remote.netty.tcp"]
@@ -130,10 +126,6 @@ object distributed {
       loglevel = "OFF"
       actor {
         provider = "akka.remote.RemoteActorRefProvider"
-        serialize-messages = on
-        serializers {
-          proto = "akka.remote.serialization.ProtobufSerializer"
-        }
       }
       remote {
         enabled-transports = ["akka.remote.netty.tcp"]

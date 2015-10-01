@@ -62,7 +62,6 @@ macro(add_xxx_benchmark benchname dir name src_ending bin_ending out_path)
                      COMMAND ${CAF_${benchname}_COMPILER}
                              ${CAF_${benchname}_COMPILER_OPTS}
                              ${SRC_FILE}
-                      "-cp" "/Users/neverlord/akka-2.3.14/lib/scala-library.jar:/Users/neverlord/akka-2.3.14/lib/akka/akka-remote_2.10-2.3.14.jar:/Users/neverlord/akka-2.3.14/lib/akka/akka-actor_2.10-2.3.14.jar:${EXECUTABLE_OUTPUT_PATH}"
                      DEPENDS ${SRC_FILE} ${ARGN}
                      WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
                      VERBATIM)
