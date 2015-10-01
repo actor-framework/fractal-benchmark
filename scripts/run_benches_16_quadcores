@@ -1,0 +1,54 @@
+#!/bin/bash
+repetitions=10
+#repetitions=10
+wdir="/home/neverlord/fractal-benchmark/build/bin"
+# start benchmark
+nodelist1=$(tail -n 16 hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20283," out } END { print out }')
+nodelist2="$nodelist1$(tail -n 16 hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20284," out } END { print out }')"
+nodelist3="$nodelist2$(tail -n 16 hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20285," out } END { print out }')"
+nodelist4="$nodelist3$(tail -n 16 hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20286," out } END { print out }')"
+echo "run setup 1 -> 16 machines with 1, 2, 3, 4 cores"
+for bench in caf mpi ; do
+  for i in {1..4} ; do
+    nodes=$(echo "$i * 16 + 1" | bc)
+    for j in $(seq 1 $repetitions); do
+      output=16_machines_${i}_cores_runtime_${bench}_distributed_mandelbrot_setup1.txt
+      if [[ $bench == "mpi" ]]; then
+        #echo "mpirun -np $nodes --hostfile hostfile${i}.txt --wdir $wdir mpi-fractal"
+        echo "run MPI with $nodes nodes"
+        mpirun -np $nodes --hostfile hostfile${i}.txt --wdir $wdir mpi-fractal >> $output
+      else
+        varname="nodelist$i"
+        echo "run CAF with $nodes actors"
+        ${wdir}/fractal-cppa -n ${!varname} >> $output
+      fi
+    done
+  done
+done
+
+nodelist1=$(tail -n 16 hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20283," out } END { print out }')
+echo "run setup 2 -> 1..16 machines with 4 cores"
+for bench in caf mpi ; do
+  for i in {1..16} ; do
+    nodes=$(echo "$i * 4 + 1" | bc)
+    machines=$(echo "$i + 1" | bc)
+    for j in $(seq 1 $repetitions); do
+      output=${i}_machines_4_cores_runtime_${bench}_distributed_mandelbrot_setup2.txt
+      if [[ $bench == "mpi" ]]; then
+        echo "run MPI with $nodes nodes"
+        #echo "mpirun -np $nodes --hostfile setup2_hostfile${machines} --wdir $wdir mpi-fractal >> $output"
+        mpirun -np $nodes --hostfile setup2_hostfile${machines} --wdir $wdir mpi-fractal >> $output
+      else
+        nodelist=""
+        nodelist="$nodelist$(tail -n $i hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20283," out } END { print out }')"
+        nodelist="$nodelist$(tail -n $i hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20284," out } END { print out }')"
+        nodelist="$nodelist$(tail -n $i hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20285," out } END { print out }')"
+        nodelist="$nodelist$(tail -n $i hostfile1.txt | awk 'BEGIN { out="" } { out=$1 ":20286," out } END { print out }')"
+        #echo "${wdir}/fractal-cppa -n $nodelist >> $output"
+        echo "run CAF with $nodes actors"
+        ${wdir}/fractal-cppa -n "$nodelist" >> $output
+      fi
+    done
+  done
+done
+
