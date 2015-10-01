@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_caf_Mandelbrot
  * Method:    calculate
- * Signature: (Ljava/util/ArrayList;IIIFFFFZ)V
+ * Signature: (IIIFFFFZ)[B
  */
-JNIEXPORT void JNICALL Java_org_caf_Mandelbrot_calculate
-  (JNIEnv *, jclass, jobject, jint, jint, jint, jfloat, jfloat, jfloat, jfloat, jboolean);
+JNIEXPORT jbyteArray JNICALL Java_org_caf_Mandelbrot_calculate
+  (JNIEnv *, jclass, jint, jint, jint, jfloat, jfloat, jfloat, jfloat, jboolean);
 
 #ifdef __cplusplus
 }

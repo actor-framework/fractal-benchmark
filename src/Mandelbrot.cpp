@@ -10,48 +10,55 @@
 
 namespace {
 
-std::atomic_flag lock = ATOMIC_FLAG_INIT;
-std::vector<QColor> palette;
+using color_vector = std::vector<QColor>;
+
+__thread std::vector<QColor>* palette = nullptr;
 
 } // namespace <anonymous>
 
 class array_list_writer {
 public:
-  array_list_writer(JNIEnv* env, jobject ptr) : env_(env), data_(ptr) {
+  array_list_writer(JNIEnv* env) : env_(env) {
+    buf_.reserve(102400); // reserve 100kb upfront
+    /*
     array_list_class_ = env->FindClass("java/util/ArrayList");
     byte_class_ = env->FindClass("java/lang/Byte");
     byte_constructor_ = env->GetMethodID(byte_class_, "<init>", "(B)V");
     add_method_ = env->GetMethodID(array_list_class_, "add", "(Ljava/lang/Object;)Z");
+    */
   }
 
-  void push_back(char value) {
+  inline void push_back(char value) {
+    buf_.push_back(value);
+    /*
     jobject arg = env_->NewObject(byte_class_, byte_constructor_, (jbyte) value);
     env_->CallBooleanMethod(data_, add_method_, arg);
+    */
+  }
+
+  jbyteArray toJavaArray() {
+    auto result = env_->NewByteArray(buf_.size());
+    env_->SetByteArrayRegion(result, 0, buf_.size(), buf_.data());
+    return result;
   }
 
 private:
+  std::vector<jbyte> buf_;
   JNIEnv* env_;
-  jobject data_;
-  jclass array_list_class_;
-  jclass byte_class_;
-  jmethodID byte_constructor_;
-  jmethodID add_method_;
 };
 
-void JNICALL Java_org_caf_Mandelbrot_calculate(JNIEnv* env, jclass, jobject result,
-                                               jint width, jint height, jint iterations,
-                                               jfloat min_re, jfloat max_re,
-                                               jfloat min_im, jfloat max_im,
-                                               jboolean fracs_changed) {
-  array_list_writer storage{env, result};
-  {
-    while (lock.test_and_set(std::memory_order_acquire))  // acquire lock
-             ; // spin
-    if (palette.empty())
-      calculate_palette_mandelbrot(palette, iterations);
-    lock.clear(std::memory_order_release);               // release lock
+jbyteArray JNICALL
+Java_org_caf_Mandelbrot_calculate(JNIEnv* env, jclass, jint width, jint height,
+                                  jint iterations, jfloat min_re, jfloat max_re,
+                                  jfloat min_im, jfloat max_im,
+                                  jboolean fracs_changed) {
+  if (! palette) {
+    palette = new color_vector;
+    calculate_palette_mandelbrot(*palette, iterations);
   }
-  calculate_mandelbrot(storage, palette, (uint32_t) width, (uint32_t) height,
+  array_list_writer storage{env};
+  calculate_mandelbrot(storage, *palette, (uint32_t) width, (uint32_t) height,
                        (uint32_t) iterations, min_re, max_re, min_im, max_im,
                        fracs_changed);
+  return storage.toJavaArray();
 }

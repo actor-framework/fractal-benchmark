@@ -11,8 +11,6 @@ import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 import Console.println
 
-import java.lang.{Byte => JByte}
-
 case class WorkerAddresses(paths: Array[String])
 
 case class Job(width: Int, height: Int, minRe: Float, maxRe: Float,
@@ -41,7 +39,8 @@ class Requests(file: String) {
     res
   }
 
-  def num() = configs.size
+  //def num() = configs.size
+  def num() = 4
 
   def atEnd() = position >= num
 
@@ -55,12 +54,12 @@ class Requests(file: String) {
 class WorkerActor() extends Actor {
   def receive = {
     case Job(width, height, minRe, maxRe, minIm, maxIm, iterations) => {
-      var buf = new java.util.ArrayList[java.lang.Byte](102400)
-      org.caf.Mandelbrot.calculate(buf, width, height, iterations,
-                                   minRe, maxRe, minIm, maxIm, false)
-      sender ! buf
+      sender ! org.caf.Mandelbrot.calculate(width, height, iterations,
+                                            minRe, maxRe, minIm, maxIm, isFirst)
+      isFirst = false
     }
   }
+  var isFirst = true
 }
 
 class MasterActor(workerRefs: List[ActorRef], requests: Requests) extends Actor {
@@ -83,7 +82,12 @@ class MasterActor(workerRefs: List[ActorRef], requests: Requests) extends Actor 
   }
 
   def receive = {
-    case img: global.Image =>
+    case img: Array[Byte] =>
+      /*
+      var fos = new java.io.FileOutputStream("javafrac" + receivedImages + ".png");
+      fos.write(img);
+      fos.close();
+      */
       receivedImages += 1
       if (receivedImages == requests.num) {
         context.stop(self)

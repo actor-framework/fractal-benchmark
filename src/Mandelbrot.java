@@ -1,18 +1,14 @@
 package org.caf;
 
-import java.util.ArrayList;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
 public class Mandelbrot {
   static {
     System.loadLibrary("fractal-benchmark");
   }
   // NOT thread-safe
-  public static native void calculate(ArrayList<Byte> storage, int width,
-                                      int height, int iterations, float min_re,
-                                      float max_re, float min_im, float max_im,
-                                      boolean fracs_changed);
+  public static native byte[] calculate(int width, int height, int iterations,
+                                        float min_re, float max_re,
+                                        float min_im, float max_im,
+                                        boolean fracs_changed);
 /*
   public static void main(String[] args) throws IOException {
     long startTime = System.currentTimeMillis();
