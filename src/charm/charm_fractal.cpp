@@ -1,3 +1,4 @@
+#include <chrono>
 #include <vector>
 #include <iostream>
 
@@ -12,27 +13,9 @@
 #include "charm++.h"
 #include "charm_fractal.decl.h"
 
-#define WRITE_IMAGES
+//#define WRITE_IMAGES
 
 using namespace std;
-
-void operator|(PUP::er& p, QByteArray& c) {
-  int32_t size = c.size();
-  p | size;
-  if (p.isUnpacking()) {
-    c.resize(size);
-    for (auto i = 0; i < size; ++i) {
-      char value;
-      p | value;
-      c[i] = value;
-    }
-  } else {
-    for (auto i = 0; i < size; ++i) {
-      char value = c.at(i);
-      p | value;
-    }
-  }
-}
 
 class MyFixedSizeMsg : public CMessage_MyFixedSizeMsg {
 public:
@@ -41,8 +24,47 @@ public:
   MyFixedSizeMsg(QByteArray x0, size_t x1) : data(x0), worker_id(x1) {
     // nop
   }
-};
 
+  MyFixedSizeMsg() {
+    // nop
+  }
+
+  static void* pack(MyFixedSizeMsg* ptr) {
+    size_t buf_size = ptr->data.size() + (sizeof(size_t) * 2);
+    char* buf = (char*) CkAllocBuffer(ptr, buf_size);
+    size_t ba_size = ptr->data.size();
+    size_t worker_id = ptr->worker_id;
+    auto pos = buf;
+    memcpy(pos, &ba_size, sizeof(size_t));
+    pos += sizeof(size_t);
+    memcpy(pos, &worker_id, sizeof(size_t));
+    pos += sizeof(size_t);
+    for (size_t i = 0; i < ptr->data.size(); ++i) {
+      *pos = ptr->data.at(i);
+      ++pos;
+    }
+    delete ptr;
+    return buf;
+  }
+  static MyFixedSizeMsg* unpack(void* vptr) {
+    // get storage
+    auto ptr = (MyFixedSizeMsg*) CkAllocBuffer(vptr, sizeof(MyFixedSizeMsg));
+    // call ctor
+    ptr = new ((void*) ptr) MyFixedSizeMsg(); 
+    // deserialize
+    size_t ba_size;
+    size_t worker_id;
+    auto pos = (char*) vptr;
+    memcpy(&ba_size, pos, sizeof(size_t));
+    pos += sizeof(size_t);
+    memcpy(&worker_id, pos, sizeof(size_t));
+    pos += sizeof(size_t);
+    for (size_t i = 0; i < ba_size; ++i)
+      ptr->data.push_back(*pos++);
+    CkFreeMsg(vptr);
+    return ptr;
+  }
+};
 
 class worker : public CBase_worker {
 public:
@@ -71,9 +93,7 @@ class client : public CBase_client {
     m_frs.init(default_width, default_height, default_min_real,
                default_max_real, default_min_imag, default_max_imag,
                default_zoom);
-    QByteArray dummy1;
-    size_t dummy2;
-    deliver_cb_ = CkIndex_client::deliver(dummy1, dummy2);
+    deliver_cb_ = CkIndex_client::deliver(NULL);
   }
 
   void run(std::vector<CProxy_worker> workers) {
@@ -84,7 +104,13 @@ class client : public CBase_client {
         send_job(wid);
   }
 
-  void deliver(QByteArray ba, size_t worker_id) {
+  void deliver(MyFixedSizeMsg* msg) { //QByteArray ba, size_t worker_id) {
+    if (msg == nullptr) {
+      abort();
+    }
+    auto ba = msg->data;
+    size_t worker_id = msg->worker_id;
+    delete msg;
 #ifdef WRITE_IMAGES
     cout << "ba.size = " << ba.size() << endl;
     QFile file(QString("fractal-%1.png").arg(m_received_images));
