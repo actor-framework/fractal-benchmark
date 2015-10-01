@@ -11,7 +11,9 @@ namespace {
 
 constexpr unsigned chunk_size = 10240; // 10kb chunk size
 
-std::vector<QColor> palette;
+using color_vector = std::vector<QColor>;
+
+__thread std::vector<QColor>* palette = nullptr;
 
 class erl_binary_writer {
 public:
@@ -51,7 +53,9 @@ public:
 
   ERL_NIF_TERM operator()(int argc, const ERL_NIF_TERM argv[]) {
     erl_binary_writer storage{env_};
-    calculate_mandelbrot(storage, palette,
+    if (! palette)
+      palette = new color_vector;
+    calculate_mandelbrot(storage, *palette,
                          getu(argv[0]), getu(argv[1]), getu(argv[2]),
                          getf(argv[3]), getf(argv[4]),
                          getf(argv[5]), getf(argv[6]), getb(argv[7]));

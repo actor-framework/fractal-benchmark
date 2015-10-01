@@ -52,10 +52,8 @@ Java_org_caf_Mandelbrot_calculate(JNIEnv* env, jclass, jint width, jint height,
                                   jint iterations, jfloat min_re, jfloat max_re,
                                   jfloat min_im, jfloat max_im,
                                   jboolean fracs_changed) {
-  if (! palette) {
+  if (! palette)
     palette = new color_vector;
-    calculate_palette_mandelbrot(*palette, iterations);
-  }
   array_list_writer storage{env};
   calculate_mandelbrot(storage, *palette, (uint32_t) width, (uint32_t) height,
                        (uint32_t) iterations, min_re, max_re, min_im, max_im,
