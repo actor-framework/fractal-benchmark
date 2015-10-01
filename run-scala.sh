@@ -18,7 +18,12 @@ else
 fi
 JVM_TUNING="-Xmx10240M -Xms32M"
 SCALA_TUNING="-Xbootclasspath/a:$classpath -Dscala.usejavacp=true"
-AKKA_TUNING="-Dakka.remote.netty.tcp.hostname=$(ifconfig -a eth1 | grep "inet addr:" | awk '{print $2}' | sed 's/addr\://')"
+if [ "$(uname)" = "Darwin" ] ; then
+  ipaddr=$(ifconfig en0 | grep "inet " | awk '{print $2}' | sed 's/addr\://')
+else
+  ipaddr=$(ifconfig -a eth1 | grep "inet addr:" | awk '{print $2}' | sed 's/addr\://')
+fi
+AKKA_TUNING="-Dakka.remote.netty.tcp.hostname=$ipaddr"
 
 cd $HOME/fractal-benchmark/build/bin
 case "$1" in
