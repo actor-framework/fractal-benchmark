@@ -212,6 +212,7 @@ set(SOURCES_CHARM
 set(CAF_CHARM_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 if (EXISTS "${CAF_CHARM_COMPILER}")
+  message(STATUS "CAF_CHARM_COMPILER: ${CAF_CHARM_COMPILER}")
   set(QT_INCLUDES_CHARM "")
   foreach(path ${QT_INCLUDES})
     set(QT_INCLUDES_CHARM "-I${path} ${QT_INCLUDES_CHARM}")
@@ -222,35 +223,39 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
       set(QT_LIB_PATHS_CHARM "-L${path} ${QT_LIB_PATHS_CHARM}")
     endif()
   endforeach()
-  message("Qt Libs (CHARM) ${QT_LIB_PATHS_CHARM}")
+  message(STATUS "Qt Libs (CHARM): ${QT_LIB_PATHS_CHARM}")
   add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.def.h
                             ${CAF_CHARM_PATH}/charm/charm_fractal.decl.h
                      COMMAND ${CAF_CHARM_COMPILER}
-                             ${CAF_CHARM_PATH}/charm/charm_fractal.ci -std=c++11
+                             "-std=c++11"
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.ci
                              ${QT_INCLUDES_CHARM}
-                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                             "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
                      DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.ci
                      WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
                      VERBATIM)
   add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.o
                      COMMAND ${CAF_CHARM_COMPILER} -c
-                             ${CAF_CHARM_PATH}/charm/charm_fractal.cpp -std=c++11
+                             "-std=c++11"
+                             ${CAF_CHARM_PATH}/charm/charm_fractal.cpp
                              ${QT_INCLUDES_CHARM}
-                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                             "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
                      DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.cpp
                              ${CAF_CHARM_PATH}/charm/charm_fractal.def.h
                              ${CAF_CHARM_PATH}/charm/charm_fractal.decl.h
                      WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
                      VERBATIM)
+  message(STATUS "${CAF_CHARM_COMPILER} -c -std=c++11 ${CAF_CHARM_PATH}/charm/charm_fractal.cpp ${QT_INCLUDES_CHARM} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
   add_custom_command(OUTPUT ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
                      COMMAND ${CAF_CHARM_COMPILER}
+                             "-std=c++11"
                              ${QT_LIB_PATHS_CHARM}
                              ${CAF_CHARM_PATH}/charm/charm_fractal.o
                              ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
                              ${CMAKE_CURRENT_SOURCE_DIR}/src/fractal_request_stream.cpp
-                             -I${CMAKE_CURRENT_SOURCE_DIR}/include
-                             -o ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
-                             -O3 -language charm++ -lQtCore -lQtGui -std=c++11
+                             "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
+                             "-o ${EXECUTABLE_OUTPUT_PATH}/charm_fractal"
+                             -O3 -language charm++ -lQtCore -lQtGui
                      DEPENDS ${CAF_CHARM_PATH}/charm/charm_fractal.o
                      WORKING_DIRECTORY ${CAF_CHARM_PATH}/charm
                      VERBATIM)
@@ -278,4 +283,4 @@ if(JNI_FOUND)
                         OUTPUT_NAME "fractal-benchmark")
 endif()
 
-add_custom_target(gui_dummy SOURCES src/Mandelbrot.java)
+add_custom_target(gui_dummy SOURCES src/Mandelbrot.java configure)

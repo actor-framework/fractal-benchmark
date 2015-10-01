@@ -30,6 +30,7 @@ Usage: $0 [OPTION]... [VAR=VALUE]...
     --dual-build                build both with gcc and clang
     --no-caf                    build without CAF
     --no-mpi                    build without MPI
+    --no-scala                  build without Scala
 
     --with-charm=FILE           Path to charm++ compiler
 
@@ -132,23 +133,23 @@ while [ $# -ne 0 ]; do
             case $level in
                 ERROR)
                     append_cache_entry CAF_LOG_LEVEL STRING 0
-                    ;;  
+                    ;;
                 WARNING)
                     append_cache_entry CAF_LOG_LEVEL STRING 1
-                    ;;  
+                    ;;
                 INFO)
                     append_cache_entry CAF_LOG_LEVEL STRING 2
-                    ;;  
+                    ;;
                 DEBUG)
                     append_cache_entry CAF_LOG_LEVEL STRING 3
-                    ;;  
+                    ;;
                 TRACE)
                     append_cache_entry CAF_LOG_LEVEL STRING 4
-                    ;;  
-                *)  
+                    ;;
+                *)
                     echo "Invalid log level '$level'. Try '$0 --help' to see valid values."
                     exit 1
-                    ;;  
+                    ;;
             esac
             ;;
         --generator=*)
@@ -186,6 +187,9 @@ while [ $# -ne 0 ]; do
             ;;
         --no-mpi)
             append_cache_entry NO_MPI BOOL true
+            ;;
+        --no-scala)
+            append_cache_entry CAF_NO_SCALA_BENCHMARKS BOOL true
             ;;
         --scala-home=*)
             append_cache_entry CAF_SCALA_HOME PATH "$optarg"
@@ -235,25 +239,25 @@ fi
 printf "DIRS := %s\n\n" "$workdirs" > $sourcedir/Makefile
 makefile=$(cat <<'EOT'
 all:
-	@for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
+  @for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
 
 test:
-	@for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
+  @for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
 
 install:
-	@for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
+  @for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
 
 uninstall:
-	@for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
+  @for i in $(DIRS); do $(MAKE) -C $$i $@ || exit; done
 
 clean:
-	@for i in $(DIRS); do $(MAKE) -C $$i $@; done
+  @for i in $(DIRS); do $(MAKE) -C $$i $@; done
 
 distclean:
-	rm -rf $(DIRS) Makefile
+  rm -rf $(DIRS) Makefile
 
 doc:
-	$(MAKE) -C $(firstword $(DIRS)) $@
+  $(MAKE) -C $(firstword $(DIRS)) $@
 
 .PHONY: all test install uninstall clean distclean
 EOT
