@@ -1,0 +1,1 @@
+g++ --std=c++11 -O3 -o fractal_nif.so -fpic -shared config.cpp fractal_nif.cpp -I/usr/include/qt4/QtGui -I/usr/include/qt4/QtCore -I/usr/include/qt4/ -I../include -lQtCore -lQtGui -L/opt/local/lib/
