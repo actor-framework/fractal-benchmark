@@ -159,6 +159,9 @@ int main(int argc, char** argv) {
   // run either as worker or client
   if (is_worker) {
     io::publish(spawn<worker>(), port);
+    io::publish(spawn<worker>(), port + 1);
+    io::publish(spawn<worker>(), port + 2);
+    io::publish(spawn<worker>(), port + 3);
   } else {
     auto nodes = split(nodes_str, ',', true);
     if (nodes.empty()) {

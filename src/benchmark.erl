@@ -26,7 +26,7 @@ for_each_line(Device, Proc, Accum) ->
         eof  ->
           file:close(Device), Accum;
         Line ->
-          Proc(lists:droplast(Line), Accum),
+          Proc(lists:reverse(tl(lists:reverse(Line))), Accum),
           for_each_line(Device, Proc, Accum + 1)
     end.
 
@@ -64,18 +64,20 @@ client(Values, I, ReceivedImages, NumImages) ->
 
 run(Args) ->
   [Hostfile|_] = Args,
-  %Values = get_values(),
-  AllValues = get_values(),
-  Values = list_to_tuple(lists:sublist(tuple_to_list(AllValues), tuple_size(AllValues) div 2, tuple_size(AllValues) div 4)),
+  Values = get_values(),
+  %AllValues = get_values(),
+  %Values = list_to_tuple(lists:sublist(tuple_to_list(AllValues), tuple_size(AllValues) div 2, tuple_size(AllValues) div 4)),
   %io:format("calculate ~p images~n", [tuple_size(Values)]),
   SpawnWorker = fun(X, _) ->
-    self() ! {spawned, spawn(list_to_atom(X), benchmark, worker, [self()])}
+    self() ! {spawned, spawn(list_to_atom(X), benchmark, worker, [self()])},
+    timer:sleep(20)
   end,
   for_each_line(Hostfile, SpawnWorker),
-  T0 = erlang:monotonic_time(),
+  T0 = now(),
   client(Values, 1, 1, tuple_size(Values) + 1),
-  T1 = erlang:monotonic_time(),
-  io:format("~p~n", [erlang:convert_time_unit(T1 - T0, native, milli_seconds)]).
+  T1 = now(),
+  %io:format("~p~n", [erlang:convert_time_unit(T1 - T0, native, milli_seconds)]).
+  io:format("~p~n", [timer:now_diff(T1, T0) / 1000]).
 
 get_values() ->
   {
