@@ -49,7 +49,6 @@ class worker : public event_based_actor {
         ba.reserve(102400); // reserve 100kb upfront
         calculate_mandelbrot(ba, m_palette, width, height, iterations,
                              min_re, max_re, min_im, max_im, false);
-        cout << "ba.size = " << ba.size() << endl;
         return make_message(ba, this);
       }
     };
@@ -69,17 +68,6 @@ class client : public event_based_actor {
 
   behavior make_behavior() {
     return {
-      [=](const actor& new_worker) {
-        monitor(new_worker);
-        // distribute initial tasks (initially 3 per worker)
-        for (int i = 0; i < 3; ++i) {
-          send_job(new_worker);
-        }
-      },
-      [=](const down_msg&) {
-        cerr << "*** critical: worker failed ***" << endl;
-        abort();
-      },
       [=](const QByteArray& ba, const actor& worker) {
 #       ifdef WRITE_IMAGES
           cout << "ba.size = " << ba.size() << endl;
@@ -88,12 +76,23 @@ class client : public event_based_actor {
           file.write(ba);
           file.close();
 #       endif
-        if (++m_received_images == max_images) {
+        static_cast<void>(ba); // suppress unused argument warning
+        if (++m_received_images == max_images)
           quit();
-        } else {
+        else
           send_job(worker);
+      },
+      [=](const std::vector<actor>& new_workers) {
+        // distribute initial tasks (initially 3 per worker)
+        for (auto& w : new_workers) {
+          monitor(w);
+          for (int i = 0; i < 3; ++i)
+            send_job(w);
         }
-        static_cast<void>(ba); // avoid unused argument warning
+      },
+      [=](const down_msg&) {
+        cerr << "*** critical: worker failed ***" << endl;
+        abort();
       }
     };
   }
@@ -108,10 +107,6 @@ class client : public event_based_actor {
     }
     ++m_sent_images;
     auto fr = m_frs.request();
-    cout << "send(worker, " << width(fr) << ", " << height(fr) << ", "
-         << min_re(fr) << ", " << max_re(fr) << ", " << min_im(fr) << ","
-         << max_im(fr) << ", " << default_iterations << ");"
-         << endl;
     send(worker, width(fr), height(fr), min_re(fr), max_re(fr), min_im(fr),
          max_im(fr), default_iterations);
   }
@@ -188,9 +183,7 @@ int main(int argc, char** argv) {
       }
     }
     auto t1 = chrono::high_resolution_clock::now();
-    for (auto& w : actors) {
-      anon_send(c, w);
-    }
+    anon_send(c, std::move(actors));
     await_all_actors_done();
     auto t2 = chrono::high_resolution_clock::now();
     auto diff = chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();

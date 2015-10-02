@@ -18,3 +18,6 @@ manual/variables.tex
 *.dump
 *.beam
 *.so
+*.decl.h
+*.def.h
+*hostfile*

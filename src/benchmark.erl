@@ -42,7 +42,10 @@ client(Values, NumImages, ReceivedImages, NumImages) ->
       client(Values, NumImages, ReceivedImages + 1, NumImages);
     % ignore new workers
     {spawned, _} ->
-      client(Values, NumImages, ReceivedImages, NumImages)
+      client(Values, NumImages, ReceivedImages, NumImages);
+    {'DOWN', _, process, _, _} ->
+      io:format("CRITICAL: worker failed!~n", []),
+      halt(666)
   end;
 
 % distribute tasks
@@ -56,10 +59,14 @@ client(Values, I, ReceivedImages, NumImages) ->
     % initially send 3 images to each new worker (ignoring errors)
     {spawned, Pid} ->
       %io:format("new worker: ~p~n", [Pid]),
+      monitor(process, Pid),
       Pid ! element(I, Values),
       Pid ! element(I + 1, Values),
       Pid ! element(I + 2, Values),
-      client(Values, I + 3, ReceivedImages, NumImages)
+      client(Values, I + 3, ReceivedImages, NumImages);
+    {'DOWN', _, process, _, _} ->
+      io:format("CRITICAL: worker failed!~n", []),
+      halt(666)
   end.
 
 run(Args) ->
@@ -77,7 +84,7 @@ run(Args) ->
   client(Values, 1, 1, tuple_size(Values) + 1),
   T1 = now(),
   %io:format("~p~n", [erlang:convert_time_unit(T1 - T0, native, milli_seconds)]).
-  io:format("~p~n", [timer:now_diff(T1, T0) / 1000]).
+  io:format("~p~n", [timer:now_diff(T1, T0) div 1000]).
 
 get_values() ->
   {
