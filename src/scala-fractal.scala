@@ -148,7 +148,7 @@ object distributed {
     val ibox = Inbox.create(system)
     val refs = nodes.replace(" ", "").split(",").map {
       x =>
-        val tout = Duration.create(1, TimeUnit.SECONDS)
+        val tout = Duration.create(10, TimeUnit.SECONDS)
         scala.concurrent.Await.result(system.actorSelection(x).resolveOne(tout), tout)
     }.toList
     val requests = new Requests("scala-values.txt")
