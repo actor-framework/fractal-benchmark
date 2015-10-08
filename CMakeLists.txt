@@ -226,7 +226,7 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
   add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.def.h
                             ${CAF_CHARM_PATH}/charm/charm_fractal.decl.h
                      COMMAND ${CAF_CHARM_COMPILER}
-                             "-std=c++11"
+                             "-std=c++11" "-O3"
                              ${CAF_CHARM_PATH}/charm/charm_fractal.ci
                              ${QT_INCLUDES_CHARM}
                              "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -235,7 +235,7 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
                      VERBATIM)
   add_custom_command(OUTPUT ${CAF_CHARM_PATH}/charm/charm_fractal.o
                      COMMAND ${CAF_CHARM_COMPILER} -c
-                             "-std=c++11"
+                             "-std=c++11" "-O3"
                              ${CAF_CHARM_PATH}/charm/charm_fractal.cpp
                              ${QT_INCLUDES_CHARM}
                              "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -247,7 +247,7 @@ if (EXISTS "${CAF_CHARM_COMPILER}")
   message(STATUS "${CAF_CHARM_COMPILER} -c -std=c++11 ${CAF_CHARM_PATH}/charm/charm_fractal.cpp ${QT_INCLUDES_CHARM} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
   add_custom_command(OUTPUT ${EXECUTABLE_OUTPUT_PATH}/charm_fractal
                      COMMAND ${CAF_CHARM_COMPILER}
-                             "-std=c++11"
+                             "-std=c++11" "-O3"
                              ${QT_LIB_PATHS_CHARM}
                              ${CAF_CHARM_PATH}/charm/charm_fractal.o
                              ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
